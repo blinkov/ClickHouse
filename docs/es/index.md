@@ -1,13 +1,14 @@
 ---
-toc_folder_title: Guides
-toc_priority: 38
-toc_title: Overview
+toc_folder_title: Getting Started
+toc_hidden: true
+toc_priority: 8
+toc_title: hidden
 ---
 
-# ClickHouse Guides {#clickhouse-guides}
+# Getting Started {#getting-started}
 
-List of detailed step-by-step instructions that help to solve various tasks using ClickHouse:
+If you are new to ClickHouse and want to get a hands-on feeling of its performance, first of all, you need to go through the [installation process](install.md). After that you can:
 
--   [Tutorial on simple cluster set-up](../getting-started/tutorial.md)
--   [Applying a CatBoost model in ClickHouse](apply-catboost-model.md)
-[Original article](https://clickhouse.tech/docs/en/guides/) <!--hide-->
+-   [Go through detailed tutorial](tutorial.md)
+-   [Experiment with example datasets](example-datasets/ontime.md)
+[Original article](https://clickhouse.tech/docs/en/getting_started/) <!--hide-->
