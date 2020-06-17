@@ -1,26 +1,29 @@
 ---
-toc_folder_title: Operations
-toc_priority: 41
+toc_folder_title: Settings
+toc_priority: 55
 toc_title: Introduction
 ---
 
-# Operations {#operations}
+# Settings {#session-settings-intro}
 
-ClickHouse operations manual consists of the following major sections:
+There are multiple ways to make all the settings described in this section of documentation.
 
--   [Requirements](requirements.md)
--   [Monitoring](monitoring.md)
--   [Troubleshooting](troubleshooting.md)
--   [Usage Recommendations](tips.md)
--   [Update Procedure](update.md)
--   [Access Rights](access-rights.md)
--   [Data Backup](backup.md)
--   [Configuration Files](configuration-files.md)
--   [Quotas](quotas.md)
--   [System Tables](system-tables.md)
--   [Server Configuration Parameters](server-configuration-parameters/index.md)
--   [How To Test Your Hardware With ClickHouse](performance-test.md)
--   [Settings](settings/index.md)
--   [Utilities](utilities/index.md)
+Settings are configured in layers, so each subsequent layer redefines the previous settings.
 
-{## [Original article](https://clickhouse.tech/docs/en/operations/) ##}
+Ways to configure settings, in order of priority:
+
+-   Settings in the `users.xml` server configuration file.
+
+    Set in the element `<profiles>`.
+
+-   Session settings.
+
+    Send `SET setting=value` from the ClickHouse console client in interactive mode. Similarly, you can use ClickHouse sessions in the HTTP protocol. To do this, you need to specify the `session_id` HTTP parameter.
+
+-   Query settings.
+
+    -   When starting the ClickHouse console client in non-interactive mode, set the startup parameter `--setting=value`.
+    -   When using the HTTP API, pass CGI parameters (`URL?setting_1=value&setting_2=value...`).
+
+Settings that can only be made in the server config file are not covered in this section.
+[Original article](https://clickhouse.tech/docs/en/operations/settings/) <!--hide-->
