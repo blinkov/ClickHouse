@@ -1,9 +1,5 @@
 ---
-toc_folder_title: F.A.Q.
-toc_priority: 76
-toc_title: hidden
-toc_hidden: true
+toc_folder_title: Third-Party
+toc_priority: 24
 ---
 
-
-{## [Original article](https://clickhouse.tech/docs/en/faq) ##}
