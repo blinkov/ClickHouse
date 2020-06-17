@@ -1,12 +1,13 @@
 ---
-toc_folder_title: Utilities
-toc_priority: 56
+toc_folder_title: Guides
+toc_priority: 38
 toc_title: Overview
 ---
 
-# ClickHouse Utility {#clickhouse-utility}
+# ClickHouse Guides {#clickhouse-guides}
 
--   [clickhouse-local](clickhouse-local.md) — Allows running SQL queries on data without stopping the ClickHouse server, similar to how `awk` does this.
--   [clickhouse-copier](clickhouse-copier.md) — Copies (and reshards) data from one cluster to another cluster.
--   [clickhouse-benchmark](clickhouse-benchmark.md) — Loads server with the custom queries and settings.
-[Original article](https://clickhouse.tech/docs/en/operations/utils/) <!--hide-->
+List of detailed step-by-step instructions that help to solve various tasks using ClickHouse:
+
+-   [Tutorial on simple cluster set-up](../getting-started/tutorial.md)
+-   [Applying a CatBoost model in ClickHouse](apply-catboost-model.md)
+[Original article](https://clickhouse.tech/docs/en/guides/) <!--hide-->
