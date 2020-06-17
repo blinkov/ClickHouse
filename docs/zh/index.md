@@ -1,11 +1,14 @@
 ---
-toc_folder_title: Special Data Types
-toc_hidden: true
-toc_priority: 55
-toc_title: hidden
+toc_folder_title: Data Types
+toc_priority: 37
+toc_title: Introduction
 ---
 
-# Special Data Types {#special-data-types}
+# Data Types {#data_types}
 
-Special data type values can’t be serialized for saving in a table or output in query results, but can be used as an intermediate result during query execution.
-[Original article](https://clickhouse.tech/docs/en/data_types/special_data_types/) <!--hide-->
+ClickHouse can store various kinds of data in table cells.
+
+This section describes the supported data types and special considerations for using and/or implementing them if any.
+
+You can check whether data type name is case-sensitive in the [system.data_type_families](../../operations/system-tables.md#system_tables-data_type_families) table.
+[Original article](https://clickhouse.tech/docs/en/data_types/) <!--hide-->
