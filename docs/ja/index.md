@@ -1,272 +1,64 @@
 ---
-toc_priority: 37
-toc_title: Operators
+toc_folder_title: Functions
+toc_priority: 32
+toc_title: Introduction
 ---
 
-# Operators {#operators}
+# Functions {#functions}
 
-ClickHouse transforms operators to their corresponding functions at the query parsing stage according to their priority, precedence, and associativity.
+There are at least\* two types of functions - regular functions (they are just called “functions”) and aggregate functions. These are completely different concepts. Regular functions work as if they are applied to each row separately (for each row, the result of the function doesn’t depend on the other rows). Aggregate functions accumulate a set of values from various rows (i.e. they depend on the entire set of rows).
 
-## Access Operators {#access-operators}
+In this section we discuss regular functions. For aggregate functions, see the section “Aggregate functions”.
 
-`a[N]` – Access to an element of an array. The `arrayElement(a, N)` function.
+\* - There is a third type of function that the ‘arrayJoin’ function belongs to; table functions can also be mentioned separately.\*
 
-`a.N` – Access to a tuple element. The `tupleElement(a, N)` function.
+## Strong Typing {#strong-typing}
 
-## Numeric Negation Operator {#numeric-negation-operator}
+In contrast to standard SQL, ClickHouse has strong typing. In other words, it doesn’t make implicit conversions between types. Each function works for a specific set of types. This means that sometimes you need to use type conversion functions.
 
-`-a` – The `negate (a)` function.
+## Common Subexpression Elimination {#common-subexpression-elimination}
 
-## Multiplication and Division Operators {#multiplication-and-division-operators}
+All expressions in a query that have the same AST (the same record or same result of syntactic parsing) are considered to have identical values. Such expressions are concatenated and executed once. Identical subqueries are also eliminated this way.
 
-`a * b` – The `multiply (a, b)` function.
+## Types of Results {#types-of-results}
 
-`a / b` – The `divide(a, b)` function.
+All functions return a single return as the result (not several values, and not zero values). The type of result is usually defined only by the types of arguments, not by the values. Exceptions are the tupleElement function (the a.N operator), and the toFixedString function.
 
-`a % b` – The `modulo(a, b)` function.
+## Constants {#constants}
 
-## Addition and Subtraction Operators {#addition-and-subtraction-operators}
+For simplicity, certain functions can only work with constants for some arguments. For example, the right argument of the LIKE operator must be a constant. Almost all functions return a constant for constant arguments. The exception is functions that generate random numbers. The ‘now’ function returns different values for queries that were run at different times, but the result is considered a constant, since constancy is only important within a single query. A constant expression is also considered a constant (for example, the right half of the LIKE operator can be constructed from multiple constants).
 
-`a + b` – The `plus(a, b)` function.
+Functions can be implemented in different ways for constant and non-constant arguments (different code is executed). But the results for a constant and for a true column containing only the same value should match each other.
 
-`a - b` – The `minus(a, b)` function.
+## NULL Processing {#null-processing}
 
-## Comparison Operators {#comparison-operators}
+Functions have the following behaviors:
 
-`a = b` – The `equals(a, b)` function.
+-   If at least one of the arguments of the function is `NULL`, the function result is also `NULL`.
+-   Special behavior that is specified individually in the description of each function. In the ClickHouse source code, these functions have `UseDefaultImplementationForNulls=false`.
 
-`a == b` – The `equals(a, b)` function.
+## Constancy {#constancy}
 
-`a != b` – The `notEquals(a, b)` function.
+Functions can’t change the values of their arguments – any changes are returned as the result. Thus, the result of calculating separate functions does not depend on the order in which the functions are written in the query.
 
-`a <> b` – The `notEquals(a, b)` function.
+## Error Handling {#error-handling}
 
-`a <= b` – The `lessOrEquals(a, b)` function.
+Some functions might throw an exception if the data is invalid. In this case, the query is canceled and an error text is returned to the client. For distributed processing, when an exception occurs on one of the servers, the other servers also attempt to abort the query.
 
-`a >= b` – The `greaterOrEquals(a, b)` function.
+## Evaluation of Argument Expressions {#evaluation-of-argument-expressions}
 
-`a < b` – The `less(a, b)` function.
+In almost all programming languages, one of the arguments might not be evaluated for certain operators. This is usually the operators `&&`, `||`, and `?:`. But in ClickHouse, arguments of functions (operators) are always evaluated. This is because entire parts of columns are evaluated at once, instead of calculating each row separately.
 
-`a > b` – The `greater(a, b)` function.
+## Performing Functions for Distributed Query Processing {#performing-functions-for-distributed-query-processing}
 
-`a LIKE s` – The `like(a, b)` function.
+For distributed query processing, as many stages of query processing as possible are performed on remote servers, and the rest of the stages (merging intermediate results and everything after that) are performed on the requestor server.
 
-`a NOT LIKE s` – The `notLike(a, b)` function.
+This means that functions can be performed on different servers. For example, in the query `SELECT f(sum(g(x))) FROM distributed_table GROUP BY h(y),`
 
-`a BETWEEN b AND c` – The same as `a >= b AND a <= c`.
+-   if a `distributed_table` has at least two shards, the functions ‘g’ and ‘h’ are performed on remote servers, and the function ‘f’ is performed on the requestor server.
+-   if a `distributed_table` has only one shard, all the ‘f’, ‘g’, and ‘h’ functions are performed on this shard’s server.
 
-`a NOT BETWEEN b AND c` – The same as `a < b OR a > c`.
+The result of a function usually doesn’t depend on which server it is performed on. However, sometimes this is important. For example, functions that work with dictionaries use the dictionary that exists on the server they are running on. Another example is the `hostName` function, which returns the name of the server it is running on in order to make `GROUP BY` by servers in a `SELECT` query.
 
-## Operators for Working with Data Sets {#operators-for-working-with-data-sets}
-
-*See [IN operators](in.md).*
-
-`a IN ...` – The `in(a, b)` function.
-
-`a NOT IN ...` – The `notIn(a, b)` function.
-
-`a GLOBAL IN ...` – The `globalIn(a, b)` function.
-
-`a GLOBAL NOT IN ...` – The `globalNotIn(a, b)` function.
-
-## Operators for Working with Dates and Times {#operators-datetime}
-
-### EXTRACT {#operator-extract}
-
-``` sql
-EXTRACT(part FROM date);
-```
-
-Extract parts from a given date. For example, you can retrieve a month from a given date, or a second from a time.
-
-The `part` parameter specifies which part of the date to retrieve. The following values are available:
-
--   `DAY` — The day of the month. Possible values: 1–31.
--   `MONTH` — The number of a month. Possible values: 1–12.
--   `YEAR` — The year.
--   `SECOND` — The second. Possible values: 0–59.
--   `MINUTE` — The minute. Possible values: 0–59.
--   `HOUR` — The hour. Possible values: 0–23.
-
-The `part` parameter is case-insensitive.
-
-The `date` parameter specifies the date or the time to process. Either [Date](../../sql-reference/data-types/date.md) or [DateTime](../../sql-reference/data-types/datetime.md) type is supported.
-
-Examples:
-
-``` sql
-SELECT EXTRACT(DAY FROM toDate('2017-06-15'));
-SELECT EXTRACT(MONTH FROM toDate('2017-06-15'));
-SELECT EXTRACT(YEAR FROM toDate('2017-06-15'));
-```
-
-In the following example we create a table and insert into it a value with the `DateTime` type.
-
-``` sql
-CREATE TABLE test.Orders
-(
-    OrderId UInt64,
-    OrderName String,
-    OrderDate DateTime
-)
-ENGINE = Log;
-```
-
-``` sql
-INSERT INTO test.Orders VALUES (1, 'Jarlsberg Cheese', toDateTime('2008-10-11 13:23:44'));
-```
-
-``` sql
-SELECT
-    toYear(OrderDate) AS OrderYear,
-    toMonth(OrderDate) AS OrderMonth,
-    toDayOfMonth(OrderDate) AS OrderDay,
-    toHour(OrderDate) AS OrderHour,
-    toMinute(OrderDate) AS OrderMinute,
-    toSecond(OrderDate) AS OrderSecond
-FROM test.Orders;
-```
-
-``` text
-┌─OrderYear─┬─OrderMonth─┬─OrderDay─┬─OrderHour─┬─OrderMinute─┬─OrderSecond─┐
-│      2008 │         10 │       11 │        13 │          23 │          44 │
-└───────────┴────────────┴──────────┴───────────┴─────────────┴─────────────┘
-```
-
-You can see more examples in [tests](https://github.com/ClickHouse/ClickHouse/blob/master/tests/queries/0_stateless/00619_extract.sql).
-
-### INTERVAL {#operator-interval}
-
-Creates an [Interval](../../sql-reference/data-types/special-data-types/interval.md)-type value that should be used in arithmetical operations with [Date](../../sql-reference/data-types/date.md) and [DateTime](../../sql-reference/data-types/datetime.md)-type values.
-
-Types of intervals:
-- `SECOND`
-- `MINUTE`
-- `HOUR`
-- `DAY`
-- `WEEK`
-- `MONTH`
-- `QUARTER`
-- `YEAR`
-
-!!! warning "Warning" Intervals with different types can’t be combined. You can’t use expressions like `INTERVAL 4 DAY 1 HOUR`. Specify intervals in units that are smaller or equal to the smallest unit of the interval, for example, `INTERVAL 25 HOUR`. You can use consecutive operations, like in the example below.
-
-Example:
-
-``` sql
-SELECT now() AS current_date_time, current_date_time + INTERVAL 4 DAY + INTERVAL 3 HOUR
-```
-
-``` text
-┌───current_date_time─┬─plus(plus(now(), toIntervalDay(4)), toIntervalHour(3))─┐
-│ 2019-10-23 11:16:28 │                                    2019-10-27 14:16:28 │
-└─────────────────────┴────────────────────────────────────────────────────────┘
-```
-
-**See Also**
-
--   [Interval](../../sql-reference/data-types/special-data-types/interval.md) data type
--   [toInterval](../../sql-reference/functions/type-conversion-functions.md#function-tointerval) type convertion functions
-
-## Logical Negation Operator {#logical-negation-operator}
-
-`NOT a` – The `not(a)` function.
-
-## Logical AND Operator {#logical-and-operator}
-
-`a AND b` – The`and(a, b)` function.
-
-## Logical OR Operator {#logical-or-operator}
-
-`a OR b` – The `or(a, b)` function.
-
-## Conditional Operator {#conditional-operator}
-
-`a ? b : c` – The `if(a, b, c)` function.
-
-Note:
-
-The conditional operator calculates the values of b and c, then checks whether condition a is met, and then returns the corresponding value. If `b` or `C` is an [arrayJoin()](../../sql-reference/functions/array-join.md#functions_arrayjoin) function, each row will be replicated regardless of the “a” condition.
-
-## Conditional Expression {#operator_case}
-
-``` sql
-CASE [x]
-    WHEN a THEN b
-    [WHEN ... THEN ...]
-    [ELSE c]
-END
-```
-
-If `x` is specified, then `transform(x, [a, ...], [b, ...], c)` function is used. Otherwise – `multiIf(a, b, ..., c)`.
-
-If there is no `ELSE c` clause in the expression, the default value is `NULL`.
-
-The `transform` function does not work with `NULL`.
-
-## Concatenation Operator {#concatenation-operator}
-
-`s1 || s2` – The `concat(s1, s2) function.`
-
-## Lambda Creation Operator {#lambda-creation-operator}
-
-`x -> expr` – The `lambda(x, expr) function.`
-
-The following operators do not have a priority since they are brackets:
-
-## Array Creation Operator {#array-creation-operator}
-
-`[x1, ...]` – The `array(x1, ...) function.`
-
-## Tuple Creation Operator {#tuple-creation-operator}
-
-`(x1, x2, ...)` – The `tuple(x2, x2, ...) function.`
-
-## Associativity {#associativity}
-
-All binary operators have left associativity. For example, `1 + 2 + 3` is transformed to `plus(plus(1, 2), 3)`. Sometimes this doesn’t work the way you expect. For example, `SELECT 4 > 2 > 3` will result in 0.
-
-For efficiency, the `and` and `or` functions accept any number of arguments. The corresponding chains of `AND` and `OR` operators are transformed into a single call of these functions.
-
-## Checking for `NULL` {#checking-for-null}
-
-ClickHouse supports the `IS NULL` and `IS NOT NULL` operators.
-
-### IS NULL {#operator-is-null}
-
--   For [Nullable](../../sql-reference/data-types/nullable.md) type values, the `IS NULL` operator returns:
-    -   `1`, if the value is `NULL`.
-    -   `0` otherwise.
--   For other values, the `IS NULL` operator always returns `0`.
-
-<!-- -->
-
-``` sql
-SELECT x+100 FROM t_null WHERE y IS NULL
-```
-
-``` text
-┌─plus(x, 100)─┐
-│          101 │
-└──────────────┘
-```
-
-### IS NOT NULL {#is-not-null}
-
--   For [Nullable](../../sql-reference/data-types/nullable.md) type values, the `IS NOT NULL` operator returns:
-    -   `0`, if the value is `NULL`.
-    -   `1` otherwise.
--   For other values, the `IS NOT NULL` operator always returns `1`.
-
-<!-- -->
-
-``` sql
-SELECT * FROM t_null WHERE y IS NOT NULL
-```
-
-``` text
-┌─x─┬─y─┐
-│ 2 │ 3 │
-└───┴───┘
-```
-[Original article](https://clickhouse.tech/docs/en/query_language/operators/) <!--hide-->
+If a function in a query is performed on the requestor server, but you need to perform it on remote servers, you can wrap it in an ‘any’ aggregate function or add it to a key in `GROUP BY`.
+[Original article](https://clickhouse.tech/docs/en/query_language/functions/) <!--hide-->
