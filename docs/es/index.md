@@ -1,5 +1,5 @@
 ---
-toc_folder_title: Introduction
-toc_priority: 1
+toc_folder_title: Third-Party
+toc_priority: 24
 ---
 
