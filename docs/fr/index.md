@@ -1,18 +1,13 @@
 ---
-toc_folder_title: Database Engines
-toc_priority: 27
-toc_title: Introduction
+toc_folder_title: Guides
+toc_priority: 38
+toc_title: Overview
 ---
 
-# Database Engines {#database-engines}
+# ClickHouse Guides {#clickhouse-guides}
 
-Database engines allow you to work with tables.
+List of detailed step-by-step instructions that help to solve various tasks using ClickHouse:
 
-By default, ClickHouse uses its native database engine, which provides configurable [table engines](../../engines/table-engines/index.md) and an [SQL dialect](../../sql-reference/syntax.md).
-
-You can also use the following database engines:
-
--   [MySQL](mysql.md)
-
--   [Lazy](lazy.md)
-[Original article](https://clickhouse.tech/docs/en/database_engines/) <!--hide-->
+-   [Tutorial on simple cluster set-up](../getting-started/tutorial.md)
+-   [Applying a CatBoost model in ClickHouse](apply-catboost-model.md)
+[Original article](https://clickhouse.tech/docs/en/guides/) <!--hide-->
