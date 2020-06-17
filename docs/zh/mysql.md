@@ -1,45 +1,132 @@
 ---
-toc_priority: 20
-toc_title: MySQL Interface
+toc_priority: 30
+toc_title: MySQL
 ---
 
-# MySQL Interface {#mysql-interface}
+# MySQL {#mysql}
 
-ClickHouse supports MySQL wire protocol. It can be enabled by [mysql\_port](../operations/server-configuration-parameters/settings.md#server_configuration_parameters-mysql_port) setting in configuration file:
+Allows to connect to databases on a remote MySQL server and perform `INSERT` and `SELECT` queries to exchange data between ClickHouse and MySQL.
 
-``` xml
-<mysql_port>9004</mysql_port>
+The `MySQL` database engine translate queries to the MySQL server so you can perform operations such as `SHOW TABLES` or `SHOW CREATE TABLE`.
+
+You cannot perform the following queries:
+
+-   `RENAME`
+-   `CREATE TABLE`
+-   `ALTER`
+
+## Creating a Database {#creating-a-database}
+
+``` sql
+CREATE DATABASE [IF NOT EXISTS] db_name [ON CLUSTER cluster]
+ENGINE = MySQL('host:port', ['database' | database], 'user', 'password')
 ```
 
-Example of connecting using command-line tool `mysql`:
+**Engine Parameters**
 
-``` bash
-$ mysql --protocol tcp -u default -P 9004
-```
+-   `host:port` — MySQL server address.
+-   `database` — Remote database name.
+-   `user` — MySQL user.
+-   `password` — User password.
 
-Output if a connection succeeded:
+## Data Types Support {#data_types-support}
+
+| MySQL                            | ClickHouse                                                   |
+| -------------------------------- | ------------------------------------------------------------ |
+| UNSIGNED TINYINT                 | [UInt8](../../sql-reference/data-types/int-uint.md)          |
+| TINYINT                          | [Int8](../../sql-reference/data-types/int-uint.md)           |
+| UNSIGNED SMALLINT                | [UInt16](../../sql-reference/data-types/int-uint.md)         |
+| SMALLINT                         | [Int16](../../sql-reference/data-types/int-uint.md)          |
+| UNSIGNED INT, UNSIGNED MEDIUMINT | [UInt32](../../sql-reference/data-types/int-uint.md)         |
+| INT, MEDIUMINT                   | [Int32](../../sql-reference/data-types/int-uint.md)          |
+| UNSIGNED BIGINT                  | [UInt64](../../sql-reference/data-types/int-uint.md)         |
+| BIGINT                           | [Int64](../../sql-reference/data-types/int-uint.md)          |
+| FLOAT                            | [Float32](../../sql-reference/data-types/float.md)           |
+| DOUBLE                           | [Float64](../../sql-reference/data-types/float.md)           |
+| DATE                             | [Date](../../sql-reference/data-types/date.md)               |
+| DATETIME, TIMESTAMP              | [DateTime](../../sql-reference/data-types/datetime.md)       |
+| BINARY                           | [FixedString](../../sql-reference/data-types/fixedstring.md) |
+
+All other MySQL data types are converted into [String](../../sql-reference/data-types/string.md).
+
+[Nullable](../../sql-reference/data-types/nullable.md) is supported.
+
+## Examples of Use {#examples-of-use}
+
+Table in MySQL:
 
 ``` text
-Welcome to the MySQL monitor.  Commands end with ; or \g.
-Your MySQL connection id is 4
-Server version: 20.2.1.1-ClickHouse
+mysql> USE test;
+Database changed
 
-Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+mysql> CREATE TABLE `mysql_table` (
+    ->   `int_id` INT NOT NULL AUTO_INCREMENT,
+    ->   `float` FLOAT NOT NULL,
+    ->   PRIMARY KEY (`int_id`));
+Query OK, 0 rows affected (0,09 sec)
 
-Oracle is a registered trademark of Oracle Corporation and/or its
-affiliates. Other names may be trademarks of their respective
-owners.
+mysql> insert into mysql_table (`int_id`, `float`) VALUES (1,2);
+Query OK, 1 row affected (0,00 sec)
 
-Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
-
-mysql>
+mysql> select * from mysql_table;
++------+-----+
+| int_id | value |
++------+-----+
+|      1 |     2 |
++------+-----+
+1 row in set (0,00 sec)
 ```
 
-For compatibility with all MySQL clients, it is recommended to specify user password with [double SHA1](../operations/settings/settings-users.md#password_double_sha1_hex) in configuration file. If user password is specified using [SHA256](../operations/settings/settings-users.md#password_sha256_hex), some clients won’t be able to authenticate (mysqljs and old versions of command-line tool mysql).
+Database in ClickHouse, exchanging data with the MySQL server:
 
-Restrictions:
+``` sql
+CREATE DATABASE mysql_db ENGINE = MySQL('localhost:3306', 'test', 'my_user', 'user_password')
+```
 
--   prepared queries are not supported
+``` sql
+SHOW DATABASES
+```
 
--   some data types are sent as strings
-[Original article](https://clickhouse.tech/docs/en/interfaces/mysql/) <!--hide-->
+``` text
+┌─name─────┐
+│ default  │
+│ mysql_db │
+│ system   │
+└──────────┘
+```
+
+``` sql
+SHOW TABLES FROM mysql_db
+```
+
+``` text
+┌─name─────────┐
+│  mysql_table │
+└──────────────┘
+```
+
+``` sql
+SELECT * FROM mysql_db.mysql_table
+```
+
+``` text
+┌─int_id─┬─value─┐
+│      1 │     2 │
+└────────┴───────┘
+```
+
+``` sql
+INSERT INTO mysql_db.mysql_table VALUES (3,4)
+```
+
+``` sql
+SELECT * FROM mysql_db.mysql_table
+```
+
+``` text
+┌─int_id─┬─value─┐
+│      1 │     2 │
+│      3 │     4 │
+└────────┴───────┘
+```
+[Original article](https://clickhouse.tech/docs/en/database_engines/mysql/) <!--hide-->
