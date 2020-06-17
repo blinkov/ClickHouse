@@ -1,5 +1,5 @@
 ---
-toc_folder_title: Special
-toc_priority: 31
+toc_folder_title: MergeTree Family
+toc_priority: 28
 ---
 
