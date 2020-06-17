@@ -1,14 +1,18 @@
 ---
-toc_folder_title: Getting Started
-toc_hidden: true
-toc_priority: 8
-toc_title: hidden
+toc_folder_title: Database Engines
+toc_priority: 27
+toc_title: Introduction
 ---
 
-# Getting Started {#getting-started}
+# Database Engines {#database-engines}
 
-If you are new to ClickHouse and want to get a hands-on feeling of its performance, first of all, you need to go through the [installation process](install.md). After that you can:
+Database engines allow you to work with tables.
 
--   [Go through detailed tutorial](tutorial.md)
--   [Experiment with example datasets](example-datasets/ontime.md)
-[Original article](https://clickhouse.tech/docs/en/getting_started/) <!--hide-->
+By default, ClickHouse uses its native database engine, which provides configurable [table engines](../../engines/table-engines/index.md) and an [SQL dialect](../../sql-reference/syntax.md).
+
+You can also use the following database engines:
+
+-   [MySQL](mysql.md)
+
+-   [Lazy](lazy.md)
+[Original article](https://clickhouse.tech/docs/en/database_engines/) <!--hide-->
