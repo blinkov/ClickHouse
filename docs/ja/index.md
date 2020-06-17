@@ -1,9 +1,9 @@
 ---
-toc_folder_title: Development
-toc_hidden: true
-toc_priority: 58
+toc_folder_title: F.A.Q.
+toc_priority: 76
 toc_title: hidden
+toc_hidden: true
 ---
 
-# ClickHouse Development {#clickhouse-development}
-[Original article](https://clickhouse.tech/docs/en/development/) <!--hide-->
+
+{## [Original article](https://clickhouse.tech/docs/en/faq) ##}
