@@ -1,8 +1,9 @@
 ---
-toc_folder_title: Engines
-toc_priority: 25
-toc_title: hidden
+toc_folder_title: Development
 toc_hidden: true
+toc_priority: 58
+toc_title: hidden
 ---
 
-{## [Original article](https://clickhouse.tech/docs/en/engines/) ##}
+# ClickHouse Development {#clickhouse-development}
+[Original article](https://clickhouse.tech/docs/en/development/) <!--hide-->
