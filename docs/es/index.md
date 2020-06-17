@@ -1,14 +1,18 @@
 ---
-toc_folder_title: Getting Started
-toc_hidden: true
-toc_priority: 8
-toc_title: hidden
+toc_folder_title: Example Datasets
+toc_priority: 12
+toc_title: Introduction
 ---
 
-# Getting Started {#getting-started}
+# Example Datasets {#example-datasets}
 
-If you are new to ClickHouse and want to get a hands-on feeling of its performance, first of all, you need to go through the [installation process](install.md). After that you can:
+This section describes how to obtain example datasets and import them into ClickHouse. For some datasets example queries are also available.
 
--   [Go through detailed tutorial](tutorial.md)
--   [Experiment with example datasets](example-datasets/ontime.md)
-[Original article](https://clickhouse.tech/docs/en/getting_started/) <!--hide-->
+-   [Anonymized Yandex.Metrica Dataset](metrica.md)
+-   [Star Schema Benchmark](star-schema.md)
+-   [WikiStat](wikistat.md)
+-   [Terabyte of Click Logs from Criteo](criteo.md)
+-   [AMPLab Big Data Benchmark](amplab-benchmark.md)
+-   [New York Taxi Data](nyc-taxi.md)
+-   [OnTime](ontime.md)
+[Original article](https://clickhouse.tech/docs/en/getting_started/example_datasets) <!--hide-->
