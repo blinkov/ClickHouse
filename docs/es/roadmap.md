@@ -1,16 +1,16 @@
 ---
-machine_translated: true
+toc_priority: 74
+toc_title: Roadmap
 ---
 
-# Hoja De Ruta {#roadmap}
-
-## Q1 2020 {#q1-2020}
-
--   Control de acceso basado en roles
+# Roadmap {#roadmap}
 
 ## Q2 2020 {#q2-2020}
 
--   Integración con servicios de autenticación externos
--   Grupos de recursos para una distribución más precisa de la capacidad del clúster entre los usuarios
+-   Integration with external authentication services
 
-{## [Artículo Original](https://clickhouse.tech/docs/es/roadmap/) ##}
+## Q3 2020 {#q3-2020}
+
+-   Resource pools for more precise distribution of cluster capacity between users
+
+{## [Original article](https://clickhouse.tech/docs/en/roadmap/) ##}
