@@ -1,81 +1,66 @@
 ---
-toc_priority: 37
-toc_title: File
+toc_priority: 45
+toc_title: Buffer
 ---
 
-# File Table Engine {#table_engines-file}
+# Buffer Table Engine {#buffer}
 
-The File table engine keeps the data in a file in one of the supported [file formats](../../../interfaces/formats.md#formats) (`TabSeparated`, `Native`, etc.).
-
-Usage scenarios:
-
--   Data export from ClickHouse to file.
--   Convert data from one format to another.
--   Updating data in ClickHouse via editing a file on a disk.
-
-## Usage in ClickHouse Server {#usage-in-clickhouse-server}
+Buffers the data to write in RAM, periodically flushing it to another table. During the read operation, data is read from the buffer and the other table simultaneously.
 
 ``` sql
-File(Format)
+Buffer(database, table, num_layers, min_time, max_time, min_rows, max_rows, min_bytes, max_bytes)
 ```
 
-The `Format` parameter specifies one of the available file formats. To perform `SELECT` queries, the format must be supported for input, and to perform `INSERT` queries – for output. The available formats are listed in the [Formats](../../../interfaces/formats.md#formats) section.
+Engine parameters:
 
-ClickHouse does not allow to specify filesystem path for`File`. It will use folder defined by [path](../../../operations/server-configuration-parameters/settings.md) setting in server configuration.
+-   `database` – Database name. Instead of the database name, you can use a constant expression that returns a string.
+-   `table` – Table to flush data to.
+-   `num_layers` – Parallelism layer. Physically, the table will be represented as `num_layers` of independent buffers. Recommended value: 16.
+-   `min_time`, `max_time`, `min_rows`, `max_rows`, `min_bytes`, and `max_bytes` – Conditions for flushing data from the buffer.
 
-When creating table using `File(Format)` it creates empty subdirectory in that folder. When data is written to that table, it’s put into `data.Format` file in that subdirectory.
+Data is flushed from the buffer and written to the destination table if all the `min*` conditions or at least one `max*` condition are met.
 
-You may manually create this subfolder and file in server filesystem and then [ATTACH](../../../sql-reference/statements/misc.md) it to table information with matching name, so you can query data from that file.
+-   `min_time`, `max_time` – Condition for the time in seconds from the moment of the first write to the buffer.
+-   `min_rows`, `max_rows` – Condition for the number of rows in the buffer.
+-   `min_bytes`, `max_bytes` – Condition for the number of bytes in the buffer.
 
-!!! warning "Warning" Be careful with this functionality, because ClickHouse does not keep track of external changes to such files. The result of simultaneous writes via ClickHouse and outside of ClickHouse is undefined.
+During the write operation, data is inserted to a `num_layers` number of random buffers. Or, if the data part to insert is large enough (greater than `max_rows` or `max_bytes`), it is written directly to the destination table, omitting the buffer.
 
-## Example
+The conditions for flushing the data are calculated separately for each of the `num_layers` buffers. For example, if `num_layers = 16` and `max_bytes = 100000000`, the maximum RAM consumption is 1.6 GB.
 
-**1.** Set up the `file_engine_table` table:
+Example:
 
 ``` sql
-CREATE TABLE file_engine_table (name String, value UInt32) ENGINE=File(TabSeparated)
+CREATE TABLE merge.hits_buffer AS merge.hits ENGINE = Buffer(merge, hits, 16, 10, 100, 10000, 1000000, 10000000, 100000000)
 ```
 
-By default ClickHouse will create folder `/var/lib/clickhouse/data/default/file_engine_table`.
+Creating a `merge.hits_buffer` table with the same structure as `merge.hits` and using the Buffer engine. When writing to this table, data is buffered in RAM and later written to the ‘merge.hits’ table. 16 buffers are created. The data in each of them is flushed if either 100 seconds have passed, or one million rows have been written, or 100 MB of data have been written; or if simultaneously 10 seconds have passed and 10,000 rows and 10 MB of data have been written. For example, if just one row has been written, after 100 seconds it will be flushed, no matter what. But if many rows have been written, the data will be flushed sooner.
 
-**2.** Manually create `/var/lib/clickhouse/data/default/file_engine_table/data.TabSeparated` containing:
+When the server is stopped, with `DROP TABLE` or `DETACH TABLE`, buffer data is also flushed to the destination table.
 
-``` bash
-$ cat data.TabSeparated
-one 1
-two 2
-```
+You can set empty strings in single quotation marks for the database and table name. This indicates the absence of a destination table. In this case, when the data flush conditions are reached, the buffer is simply cleared. This may be useful for keeping a window of data in memory.
 
-**3.** Query the data:
+When reading from a Buffer table, data is processed both from the buffer and from the destination table (if there is one). Note that the Buffer tables does not support an index. In other words, data in the buffer is fully scanned, which might be slow for large buffers. (For data in a subordinate table, the index that it supports will be used.)
 
-``` sql
-SELECT * FROM file_engine_table
-```
+If the set of columns in the Buffer table doesn’t match the set of columns in a subordinate table, a subset of columns that exist in both tables is inserted.
 
-``` text
-┌─name─┬─value─┐
-│ one  │     1 │
-│ two  │     2 │
-└──────┴───────┘
-```
+If the types don’t match for one of the columns in the Buffer table and a subordinate table, an error message is entered in the server log and the buffer is cleared. The same thing happens if the subordinate table doesn’t exist when the buffer is flushed.
 
-## Usage in ClickHouse-local {#usage-in-clickhouse-local}
+If you need to run ALTER for a subordinate table and the Buffer table, we recommend first deleting the Buffer table, running ALTER for the subordinate table, then creating the Buffer table again.
 
-In [clickhouse-local](../../../operations/utilities/clickhouse-local.md) File engine accepts file path in addition to `Format`. Default input/output streams can be specified using numeric or human-readable names like `0` or `stdin`, `1` or `stdout`. **Example:**
+If the server is restarted abnormally, the data in the buffer is lost.
 
-``` bash
-$ echo -e "1,2\n3,4" | clickhouse-local -q "CREATE TABLE table (a Int64, b Int64) ENGINE = File(CSV, stdin); SELECT a, b FROM table; DROP TABLE table"
-```
+`FINAL` and `SAMPLE` do not work correctly for Buffer tables. These conditions are passed to the destination table, but are not used for processing data in the buffer. If these features are required we recommend only using the Buffer table for writing, while reading from the destination table.
 
-## Details of Implementation {#details-of-implementation}
+When adding data to a Buffer, one of the buffers is locked. This causes delays if a read operation is simultaneously being performed from the table.
 
--   Multiple `SELECT` queries can be performed concurrently, but `INSERT` queries will wait each other.
--   Supported creating new file by `INSERT` query.
--   If file exists, `INSERT` would append new values in it.
--   Not supported:
-    -   `ALTER`
-    -   `SELECT ... SAMPLE`
-    -   Indices
-    -   Replication
-[Original article](https://clickhouse.tech/docs/en/operations/table_engines/file/) <!--hide-->
+Data that is inserted to a Buffer table may end up in the subordinate table in a different order and in different blocks. Because of this, a Buffer table is difficult to use for writing to a CollapsingMergeTree correctly. To avoid problems, you can set `num_layers` to 1.
+
+If the destination table is replicated, some expected characteristics of replicated tables are lost when writing to a Buffer table. The random changes to the order of rows and sizes of data parts cause data deduplication to quit working, which means it is not possible to have a reliable ‘exactly once’ write to replicated tables.
+
+Due to these disadvantages, we can only recommend using a Buffer table in rare cases.
+
+A Buffer table is used when too many INSERTs are received from a large number of servers over a unit of time and data can’t be buffered before insertion, which means the INSERTs can’t run fast enough.
+
+Note that it doesn’t make sense to insert data one row at a time, even for Buffer tables. This will only produce a speed of a few thousand rows per second, while inserting larger blocks of data can produce over a million rows per second (see the section “Performance”).
+[Original article](https://clickhouse.tech/docs/en/operations/table_engines/buffer/) <!--hide-->
