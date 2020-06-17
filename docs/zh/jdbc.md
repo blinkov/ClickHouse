@@ -1,25 +1,12 @@
 ---
-toc_priority: 43
-toc_title: jdbc
+toc_priority: 22
+toc_title: JDBC Driver
 ---
 
-# jdbc {#table-function-jdbc}
+# JDBC Driver {#jdbc-driver}
 
-`jdbc(jdbc_connection_uri, schema, table)` - returns table that is connected via JDBC driver.
-
-This table function requires separate `clickhouse-jdbc-bridge` program to be running. It supports Nullable types (based on DDL of remote table that is queried).
-
-**Examples**
-
-``` sql
-SELECT * FROM jdbc('jdbc:mysql://localhost:3306/?user=root&password=root', 'schema', 'table')
-```
-
-``` sql
-SELECT * FROM jdbc('mysql://localhost:3306/?user=root&password=root', 'schema', 'table')
-```
-
-``` sql
-SELECT * FROM jdbc('datasource://mysql-local', 'schema', 'table')
-```
-[Original article](https://clickhouse.tech/docs/en/query_language/table_functions/jdbc/) <!--hide-->
+-   **[Official driver](https://github.com/ClickHouse/clickhouse-jdbc)**
+-   Third-party drivers:
+    -   [ClickHouse-Native-JDBC](https://github.com/housepower/ClickHouse-Native-JDBC)
+    -   [clickhouse4j](https://github.com/blynkkk/clickhouse4j)
+[Original article](https://clickhouse.tech/docs/en/interfaces/jdbc/) <!--hide-->
