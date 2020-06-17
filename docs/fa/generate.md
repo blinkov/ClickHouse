@@ -1,57 +1,39 @@
 ---
-toc_priority: 46
-toc_title: GenerateRandom
+toc_priority: 47
+toc_title: generateRandom
 ---
 
-# GenerateRandom Table Engine {#table_engines-generate}
+# generateRandom {#generaterandom}
 
-The GenerateRandom table engine produces random data for given table schema.
-
-Usage examples:
-
--   Use in test to populate reproducible large table.
--   Generate random input for fuzzing tests.
-
-## Usage in ClickHouse Server {#usage-in-clickhouse-server}
+Generates random data with given schema. Allows to populate test tables with data. Supports all data types that can be stored in table except `LowCardinality` and `AggregateFunction`.
 
 ``` sql
-ENGINE = GenerateRandom(random_seed, max_string_length, max_array_length)
+generateRandom('name TypeName[, name TypeName]...', [, 'random_seed'[, 'max_string_length'[, 'max_array_length']]]);
 ```
 
-The `max_array_length` and `max_string_length` parameters specify maximum length of all array columns and strings correspondingly in generated data.
+**Parameters**
 
-Generate table engine supports only `SELECT` queries.
+-   `name` — Name of corresponding column.
+-   `TypeName` — Type of corresponding column.
+-   `max_array_length` — Maximum array length for all generated arrays. Defaults to `10`.
+-   `max_string_length` — Maximum string length for all generated strings. Defaults to `10`.
+-   `random_seed` — Specify random seed manually to produce stable results. If NULL — seed is randomly generated.
 
-It supports all [DataTypes](../../../sql-reference/data-types/index.md) that can be stored in a table except `LowCardinality` and `AggregateFunction`.
+**Returned Value**
 
-## Example
+A table object with requested schema.
 
-**1.** Set up the `generate_engine_table` table:
-
-``` sql
-CREATE TABLE generate_engine_table (name String, value UInt32) ENGINE = GenerateRandom(1, 5, 3)
-```
-
-**2.** Query the data:
+## Usage Example {#usage-example}
 
 ``` sql
-SELECT * FROM generate_engine_table LIMIT 3
+SELECT * FROM generateRandom('a Array(Int8), d Decimal32(4), c Tuple(DateTime64(3), UUID)', 1, 10, 2) LIMIT 3;
 ```
 
 ``` text
-┌─name─┬──────value─┐
-│ c4xJ │ 1412771199 │
-│ r    │ 1791099446 │
-│ 7#$  │  124312908 │
-└──────┴────────────┘
+┌─a────────┬────────────d─┬─c──────────────────────────────────────────────────────────────────┐
+│ [77]     │ -124167.6723 │ ('2061-04-17 21:59:44.573','3f72f405-ec3e-13c8-44ca-66ef335f7835') │
+│ [32,110] │ -141397.7312 │ ('1979-02-09 03:43:48.526','982486d1-5a5d-a308-e525-7bd8b80ffa73') │
+│ [68]     │  -67417.0770 │ ('2080-03-12 14:17:31.269','110425e5-413f-10a6-05ba-fa6b3e929f15') │
+└──────────┴──────────────┴────────────────────────────────────────────────────────────────────┘
 ```
-
-## Details of Implementation {#details-of-implementation}
-
--   Not supported:
-    -   `ALTER`
-    -   `SELECT ... SAMPLE`
-    -   `INSERT`
-    -   Indices
-    -   Replication
-[Original article](https://clickhouse.tech/docs/en/operations/table_engines/generate/) <!--hide-->
+[Original article](https://clickhouse.tech/docs/en/query_language/table_functions/generate/) <!--hide-->
