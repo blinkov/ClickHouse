@@ -1,16 +1,18 @@
 ---
-toc_folder_title: Server Configuration Parameters
-toc_priority: 54
+toc_folder_title: Database Engines
+toc_priority: 27
 toc_title: Introduction
 ---
 
-# Server Configuration Parameters {#server-settings}
+# Database Engines {#database-engines}
 
-This section contains descriptions of server settings that cannot be changed at the session or query level.
+Database engines allow you to work with tables.
 
-These settings are stored in the `config.xml` file on the ClickHouse server.
+By default, ClickHouse uses its native database engine, which provides configurable [table engines](../../engines/table-engines/index.md) and an [SQL dialect](../../sql-reference/syntax.md).
 
-Other settings are described in the “[Settings](../settings/index.md#session-settings-intro)” section.
+You can also use the following database engines:
 
-Before studying the settings, read the [Configuration files](../configuration-files.md#configuration_files) section and note the use of substitutions (the `incl` and `optional` attributes).
-[Original article](https://clickhouse.tech/docs/en/operations/server_configuration_parameters/) <!--hide-->
+-   [MySQL](mysql.md)
+
+-   [Lazy](lazy.md)
+[Original article](https://clickhouse.tech/docs/en/database_engines/) <!--hide-->
