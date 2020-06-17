@@ -1,17 +1,19 @@
 ---
-toc_folder_title: SQL Reference
-toc_hidden: true
-toc_priority: 28
-toc_title: hidden
+toc_folder_title: Dictionaries
+toc_priority: 35
+toc_title: Introduction
 ---
 
-# SQL Reference {#sql-reference}
+# Dictionaries {#dictionaries}
 
-ClickHouse supports the following types of queries:
+A dictionary is a mapping (`key -> attributes`) that is convenient for various types of reference lists.
 
--   [SELECT](statements/select/index.md)
--   [INSERT INTO](statements/insert-into.md)
--   [CREATE](statements/create.md)
--   [ALTER](statements/alter.md#query_language_queries_alter)
--   [Other types of queries](statements/misc.md)
-[Original article](https://clickhouse.tech/docs/en/sql-reference/) <!--hide-->
+ClickHouse supports special functions for working with dictionaries that can be used in queries. It is easier and more efficient to use dictionaries with functions than a `JOIN` with reference tables.
+
+[NULL](../../sql-reference/syntax.md#null-literal) values can’t be stored in a dictionary.
+
+ClickHouse supports:
+
+-   [Built-in dictionaries](internal-dicts.md#internal_dicts) with a specific [set of functions](../../sql-reference/functions/ym-dict-functions.md).
+-   [Plug-in (external) dictionaries](external-dictionaries/external-dicts.md#dicts-external-dicts) with a [set of functions](../../sql-reference/functions/ext-dict-functions.md).
+[Original article](https://clickhouse.tech/docs/en/query_language/dicts/) <!--hide-->
