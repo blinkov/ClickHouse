@@ -1,50 +1,35 @@
 ---
-toc_priority: 35
-toc_title: ODBC
+toc_priority: 44
+toc_title: odbc
 ---
 
-# ODBC {#table-engine-odbc}
+# odbc {#table-functions-odbc}
 
-Allows ClickHouse to connect to external databases via [ODBC](https://en.wikipedia.org/wiki/Open_Database_Connectivity).
-
-To safely implement ODBC connections, ClickHouse uses a separate program `clickhouse-odbc-bridge`. If the ODBC driver is loaded directly from `clickhouse-server`, driver problems can crash the ClickHouse server. ClickHouse automatically starts `clickhouse-odbc-bridge` when it is required. The ODBC bridge program is installed from the same package as the `clickhouse-server`.
-
-This engine supports the [Nullable](../../../sql-reference/data-types/nullable.md) data type.
-
-## Creating a Table {#creating-a-table}
+Returns table that is connected via [ODBC](https://en.wikipedia.org/wiki/Open_Database_Connectivity).
 
 ``` sql
-CREATE TABLE [IF NOT EXISTS] [db.]table_name [ON CLUSTER cluster]
-(
-    name1 [type1],
-    name2 [type2],
-    ...
-)
-ENGINE = ODBC(connection_settings, external_database, external_table)
+odbc(connection_settings, external_database, external_table)
 ```
 
-See a detailed description of the [CREATE TABLE](../../../sql-reference/statements/create.md#create-table-query) query.
-
-The table structure can differ from the source table structure:
-
--   Column names should be the same as in the source table, but you can use just some of these columns and in any order.
--   Column types may differ from those in the source table. ClickHouse tries to [cast](../../../sql-reference/functions/type-conversion-functions.md#type_conversion_function-cast) values to the ClickHouse data types.
-
-**Engine Parameters**
+Parameters:
 
 -   `connection_settings` — Name of the section with connection settings in the `odbc.ini` file.
 -   `external_database` — Name of a database in an external DBMS.
 -   `external_table` — Name of a table in the `external_database`.
 
+To safely implement ODBC connections, ClickHouse uses a separate program `clickhouse-odbc-bridge`. If the ODBC driver is loaded directly from `clickhouse-server`, driver problems can crash the ClickHouse server. ClickHouse automatically starts `clickhouse-odbc-bridge` when it is required. The ODBC bridge program is installed from the same package as the `clickhouse-server`.
+
+The fields with the `NULL` values from the external table are converted into the default values for the base data type. For example, if a remote MySQL table field has the `INT NULL` type it is converted to 0 (the default value for ClickHouse `Int32` data type).
+
 ## Usage Example {#usage-example}
 
-**Retrieving data from the local MySQL installation via ODBC**
+**Getting data from the local MySQL installation via ODBC**
 
 This example is checked for Ubuntu Linux 18.04 and MySQL server 5.7.
 
 Ensure that unixODBC and MySQL Connector are installed.
 
-By default (if installed from packages), ClickHouse starts as user `clickhouse`. Thus, you need to create and configure this user in the MySQL server.
+By default (if installed from packages), ClickHouse starts as user `clickhouse`. Thus you need to create and configure this user in the MySQL server.
 
 ``` bash
 $ sudo mysql
@@ -101,29 +86,20 @@ mysql> select * from test;
 1 row in set (0,00 sec)
 ```
 
-Table in ClickHouse, retrieving data from the MySQL table:
+Retrieving data from the MySQL table in ClickHouse:
 
 ``` sql
-CREATE TABLE odbc_t
-(
-    `int_id` Int32,
-    `float_nullable` Nullable(Float32)
-)
-ENGINE = ODBC('DSN=mysqlconn', 'test', 'test')
-```
-
-``` sql
-SELECT * FROM odbc_t
+SELECT * FROM odbc('DSN=mysqlconn', 'test', 'test')
 ```
 
 ``` text
-┌─int_id─┬─float_nullable─┐
-│      1 │           ᴺᵁᴸᴸ │
-└────────┴────────────────┘
+┌─int_id─┬─int_nullable─┬─float─┬─float_nullable─┐
+│      1 │            0 │     2 │              0 │
+└────────┴──────────────┴───────┴────────────────┘
 ```
 
 ## See Also {#see-also}
 
--   [ODBC external dictionaries](../../../sql-reference/dictionaries/external-dictionaries/external-dicts-dict-sources.md#dicts-external_dicts_dict_sources-odbc)
--   [ODBC table function](../../../sql-reference/table-functions/odbc.md)
-[Original article](https://clickhouse.tech/docs/en/operations/table_engines/odbc/) <!--hide-->
+-   [ODBC external dictionaries](../../sql-reference/dictionaries/external-dictionaries/external-dicts-dict-sources.md#dicts-external_dicts_dict_sources-odbc)
+-   [ODBC table engine](../../engines/table-engines/integrations/odbc.md).
+[Original article](https://clickhouse.tech/docs/en/query_language/table_functions/jdbc/) <!--hide-->
