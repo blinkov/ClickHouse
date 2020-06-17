@@ -1,19 +1,34 @@
 ---
-toc_folder_title: Dictionaries
-toc_priority: 35
+toc_folder_title: Table Functions
+toc_priority: 34
 toc_title: Introduction
 ---
 
-# Dictionaries {#dictionaries}
+# Table Functions {#table-functions}
 
-A dictionary is a mapping (`key -> attributes`) that is convenient for various types of reference lists.
+Table functions are methods for constructing tables.
 
-ClickHouse supports special functions for working with dictionaries that can be used in queries. It is easier and more efficient to use dictionaries with functions than a `JOIN` with reference tables.
+You can use table functions in:
 
-[NULL](../../sql-reference/syntax.md#null-literal) values can’t be stored in a dictionary.
+-   [FROM](../statements/select/from.md) clause of the `SELECT` query.
+  
+        The method for creating a temporary table that is available only in the current query. The table is deleted when the query finishes.
 
-ClickHouse supports:
+-   [CREATE TABLE AS \<table\\\_function()\\>](../statements/create.md#create-table-query) query.
+  
+        It's one of the methods of creating a table.
 
--   [Built-in dictionaries](internal-dicts.md#internal_dicts) with a specific [set of functions](../../sql-reference/functions/ym-dict-functions.md).
--   [Plug-in (external) dictionaries](external-dictionaries/external-dicts.md#dicts-external-dicts) with a [set of functions](../../sql-reference/functions/ext-dict-functions.md).
-[Original article](https://clickhouse.tech/docs/en/query_language/dicts/) <!--hide-->
+!!! warning "Warning" You can’t use table functions if the [allow\_ddl](../../operations/settings/permissions-for-queries.md#settings_allow_ddl) setting is disabled.
+
+| Function              | Description                                                                                                                            |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| [file](file.md)       | Creates a [File](../../engines/table-engines/special/file.md)-engine table.                                                            |
+| [merge](merge.md)     | Creates a [Merge](../../engines/table-engines/special/merge.md)-engine table.                                                          |
+| [numbers](numbers.md) | Creates a table with a single column filled with integer numbers.                                                                      |
+| [remote](remote.md)   | Allows you to access remote servers without creating a [Distributed](../../engines/table-engines/special/distributed.md)-engine table. |
+| [url](url.md)         | Creates a [Url](../../engines/table-engines/special/url.md)-engine table.                                                              |
+| [mysql](mysql.md)     | Creates a [MySQL](../../engines/table-engines/integrations/mysql.md)-engine table.                                                     |
+| [jdbc](jdbc.md)       | Creates a [JDBC](../../engines/table-engines/integrations/jdbc.md)-engine table.                                                       |
+| [odbc](odbc.md)       | Creates a [ODBC](../../engines/table-engines/integrations/odbc.md)-engine table.                                                       |
+| [hdfs](hdfs.md)       | Creates a [HDFS](../../engines/table-engines/integrations/hdfs.md)-engine table.                                                       |
+[Original article](https://clickhouse.tech/docs/en/query_language/table_functions/) <!--hide-->
