@@ -1,5 +1,5 @@
 ---
-toc_folder_title: What's New
-toc_priority: 72
+toc_folder_title: Statements
+toc_priority: 31
 ---
 
