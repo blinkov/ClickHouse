@@ -1,29 +1,12 @@
 ---
-toc_folder_title: Settings
-toc_priority: 55
-toc_title: Introduction
+toc_folder_title: Utilities
+toc_priority: 56
+toc_title: Overview
 ---
 
-# Settings {#session-settings-intro}
+# ClickHouse Utility {#clickhouse-utility}
 
-There are multiple ways to make all the settings described in this section of documentation.
-
-Settings are configured in layers, so each subsequent layer redefines the previous settings.
-
-Ways to configure settings, in order of priority:
-
--   Settings in the `users.xml` server configuration file.
-
-    Set in the element `<profiles>`.
-
--   Session settings.
-
-    Send `SET setting=value` from the ClickHouse console client in interactive mode. Similarly, you can use ClickHouse sessions in the HTTP protocol. To do this, you need to specify the `session_id` HTTP parameter.
-
--   Query settings.
-
-    -   When starting the ClickHouse console client in non-interactive mode, set the startup parameter `--setting=value`.
-    -   When using the HTTP API, pass CGI parameters (`URL?setting_1=value&setting_2=value...`).
-
-Settings that can only be made in the server config file are not covered in this section.
-[Original article](https://clickhouse.tech/docs/en/operations/settings/) <!--hide-->
+-   [clickhouse-local](clickhouse-local.md) — Allows running SQL queries on data without stopping the ClickHouse server, similar to how `awk` does this.
+-   [clickhouse-copier](clickhouse-copier.md) — Copies (and reshards) data from one cluster to another cluster.
+-   [clickhouse-benchmark](clickhouse-benchmark.md) — Loads server with the custom queries and settings.
+[Original article](https://clickhouse.tech/docs/en/operations/utils/) <!--hide-->
