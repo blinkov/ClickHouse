@@ -1,8 +1,5 @@
 ---
-toc_folder_title: Engines
-toc_priority: 25
-toc_title: hidden
-toc_hidden: true
+toc_folder_title: MergeTree Family
+toc_priority: 28
 ---
 
-{## [Original article](https://clickhouse.tech/docs/en/engines/) ##}
