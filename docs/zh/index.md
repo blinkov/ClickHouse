@@ -1,64 +1,164 @@
 ---
-toc_folder_title: Functions
-toc_priority: 32
-toc_title: Introduction
+toc_priority: 33
+toc_folder_title: SELECT
+toc_title: Overview
+title: SELECT Query
 ---
 
-# Functions {#functions}
+# SELECT Query {#select-queries-syntax}
 
-There are at least\* two types of functions - regular functions (they are just called “functions”) and aggregate functions. These are completely different concepts. Regular functions work as if they are applied to each row separately (for each row, the result of the function doesn’t depend on the other rows). Aggregate functions accumulate a set of values from various rows (i.e. they depend on the entire set of rows).
+`SELECT` queries perform data retrieval. By default, the requested data is returned to the client, while in conjunction with [INSERT INTO](../../../sql-reference/statements/insert-into.md) it can be forwarded to a different table.
 
-In this section we discuss regular functions. For aggregate functions, see the section “Aggregate functions”.
+## Syntax
 
-\* - There is a third type of function that the ‘arrayJoin’ function belongs to; table functions can also be mentioned separately.\*
+``` sql
+[WITH expr_list|(subquery)]
+SELECT [DISTINCT] expr_list
+[FROM [db.]table | (subquery) | table_function] [FINAL]
+[SAMPLE sample_coeff]
+[ARRAY JOIN ...]
+[GLOBAL] [ANY|ALL] [INNER|LEFT|RIGHT|FULL|CROSS] [OUTER] JOIN (subquery)|table USING columns_list
+[PREWHERE expr]
+[WHERE expr]
+[GROUP BY expr_list] [WITH TOTALS]
+[HAVING expr]
+[ORDER BY expr_list]
+[LIMIT [offset_value, ]n BY columns]
+[LIMIT [n, ]m]
+[UNION ALL ...]
+[INTO OUTFILE filename]
+[FORMAT format]
+```
 
-## Strong Typing {#strong-typing}
+All clauses are optional, except for the required list of expressions immediately after `SELECT` which is covered in more detail [below](#select-clause).
 
-In contrast to standard SQL, ClickHouse has strong typing. In other words, it doesn’t make implicit conversions between types. Each function works for a specific set of types. This means that sometimes you need to use type conversion functions.
+Specifics of each optional clause are covered in separate sections, which are listed in the same order as they are executed:
 
-## Common Subexpression Elimination {#common-subexpression-elimination}
+-   [WITH clause](with.md)
+-   [FROM clause](from.md)
+-   [SAMPLE clause](sample.md)
+-   [JOIN clause](join.md)
+-   [PREWHERE clause](prewhere.md)
+-   [WHERE clause](where.md)
+-   [GROUP BY clause](group-by.md)
+-   [LIMIT BY clause](limit-by.md)
+-   [HAVING clause](having.md)
+-   [SELECT clause](#select-clause)
+-   [DISTINCT clause](distinct.md)
+-   [LIMIT clause](limit.md)
+-   [UNION ALL clause](union-all.md)
+-   [INTO OUTFILE clause](into-outfile.md)
+-   [FORMAT clause](format.md)
 
-All expressions in a query that have the same AST (the same record or same result of syntactic parsing) are considered to have identical values. Such expressions are concatenated and executed once. Identical subqueries are also eliminated this way.
+## SELECT Clause {#select-clause}
 
-## Types of Results {#types-of-results}
+[Expressions](../../syntax.md#syntax-expressions) specified in the `SELECT` clause are calculated after all the operations in the clauses described above are finished. These expressions work as if they apply to separate rows in the result. If expressions in the `SELECT` clause contain aggregate functions, then ClickHouse processes aggregate functions and expressions used as their arguments during the [GROUP BY](group-by.md) aggregation.
 
-All functions return a single return as the result (not several values, and not zero values). The type of result is usually defined only by the types of arguments, not by the values. Exceptions are the tupleElement function (the a.N operator), and the toFixedString function.
+If you want to include all columns in the result, use the asterisk (`*`) symbol. For example, `SELECT * FROM ...`.
 
-## Constants {#constants}
+To match some columns in the result with a [re2](https://en.wikipedia.org/wiki/RE2_(software)) regular expression, you can use the `COLUMNS` expression.
 
-For simplicity, certain functions can only work with constants for some arguments. For example, the right argument of the LIKE operator must be a constant. Almost all functions return a constant for constant arguments. The exception is functions that generate random numbers. The ‘now’ function returns different values for queries that were run at different times, but the result is considered a constant, since constancy is only important within a single query. A constant expression is also considered a constant (for example, the right half of the LIKE operator can be constructed from multiple constants).
+``` sql
+COLUMNS('regexp')
+```
 
-Functions can be implemented in different ways for constant and non-constant arguments (different code is executed). But the results for a constant and for a true column containing only the same value should match each other.
+For example, consider the table:
 
-## NULL Processing {#null-processing}
+``` sql
+CREATE TABLE default.col_names (aa Int8, ab Int8, bc Int8) ENGINE = TinyLog
+```
 
-Functions have the following behaviors:
+The following query selects data from all the columns containing the `a` symbol in their name.
 
--   If at least one of the arguments of the function is `NULL`, the function result is also `NULL`.
--   Special behavior that is specified individually in the description of each function. In the ClickHouse source code, these functions have `UseDefaultImplementationForNulls=false`.
+``` sql
+SELECT COLUMNS('a') FROM col_names
+```
 
-## Constancy {#constancy}
+``` text
+┌─aa─┬─ab─┐
+│  1 │  1 │
+└────┴────┘
+```
 
-Functions can’t change the values of their arguments – any changes are returned as the result. Thus, the result of calculating separate functions does not depend on the order in which the functions are written in the query.
+The selected columns are returned not in the alphabetical order.
 
-## Error Handling {#error-handling}
+You can use multiple `COLUMNS` expressions in a query and apply functions to them.
 
-Some functions might throw an exception if the data is invalid. In this case, the query is canceled and an error text is returned to the client. For distributed processing, when an exception occurs on one of the servers, the other servers also attempt to abort the query.
+For example:
 
-## Evaluation of Argument Expressions {#evaluation-of-argument-expressions}
+``` sql
+SELECT COLUMNS('a'), COLUMNS('c'), toTypeName(COLUMNS('c')) FROM col_names
+```
 
-In almost all programming languages, one of the arguments might not be evaluated for certain operators. This is usually the operators `&&`, `||`, and `?:`. But in ClickHouse, arguments of functions (operators) are always evaluated. This is because entire parts of columns are evaluated at once, instead of calculating each row separately.
+``` text
+┌─aa─┬─ab─┬─bc─┬─toTypeName(bc)─┐
+│  1 │  1 │  1 │ Int8           │
+└────┴────┴────┴────────────────┘
+```
 
-## Performing Functions for Distributed Query Processing {#performing-functions-for-distributed-query-processing}
+Each column returned by the `COLUMNS` expression is passed to the function as a separate argument. Also you can pass other arguments to the function if it supports them. Be careful when using functions. If a function doesn’t support the number of arguments you have passed to it, ClickHouse throws an exception.
 
-For distributed query processing, as many stages of query processing as possible are performed on remote servers, and the rest of the stages (merging intermediate results and everything after that) are performed on the requestor server.
+For example:
 
-This means that functions can be performed on different servers. For example, in the query `SELECT f(sum(g(x))) FROM distributed_table GROUP BY h(y),`
+``` sql
+SELECT COLUMNS('a') + COLUMNS('c') FROM col_names
+```
 
--   if a `distributed_table` has at least two shards, the functions ‘g’ and ‘h’ are performed on remote servers, and the function ‘f’ is performed on the requestor server.
--   if a `distributed_table` has only one shard, all the ‘f’, ‘g’, and ‘h’ functions are performed on this shard’s server.
+``` text
+Received exception from server (version 19.14.1):
+Code: 42. DB::Exception: Received from localhost:9000. DB::Exception: Number of arguments for function plus doesn't match: passed 3, should be 2.
+```
 
-The result of a function usually doesn’t depend on which server it is performed on. However, sometimes this is important. For example, functions that work with dictionaries use the dictionary that exists on the server they are running on. Another example is the `hostName` function, which returns the name of the server it is running on in order to make `GROUP BY` by servers in a `SELECT` query.
+In this example, `COLUMNS('a')` returns two columns: `aa` and `ab`. `COLUMNS('c')` returns the `bc` column. The `+` operator can’t apply to 3 arguments, so ClickHouse throws an exception with the relevant message.
 
-If a function in a query is performed on the requestor server, but you need to perform it on remote servers, you can wrap it in an ‘any’ aggregate function or add it to a key in `GROUP BY`.
-[Original article](https://clickhouse.tech/docs/en/query_language/functions/) <!--hide-->
+Columns that matched the `COLUMNS` expression can have different data types. If `COLUMNS` doesn’t match any columns and is the only expression in `SELECT`, ClickHouse throws an exception.
+
+### Asterisk
+
+You can put an asterisk in any part of a query instead of an expression. When the query is analyzed, the asterisk is expanded to a list of all table columns (excluding the `MATERIALIZED` and `ALIAS` columns). There are only a few cases when using an asterisk is justified:
+
+-   When creating a table dump.
+-   For tables containing just a few columns, such as system tables.
+-   For getting information about what columns are in a table. In this case, set `LIMIT 1`. But it is better to use the `DESC TABLE` query.
+-   When there is strong filtration on a small number of columns using `PREWHERE`.
+-   In subqueries (since columns that aren’t needed for the external query are excluded from subqueries).
+
+In all other cases, we don’t recommend using the asterisk, since it only gives you the drawbacks of a columnar DBMS instead of the advantages. In other words using the asterisk is not recommended.
+
+### Extreme Values {#extreme-values}
+
+In addition to results, you can also get minimum and maximum values for the results columns. To do this, set the **extremes** setting to 1. Minimums and maximums are calculated for numeric types, dates, and dates with times. For other columns, the default values are output.
+
+An extra two rows are calculated – the minimums and maximums, respectively. These extra two rows are output in `JSON*`, `TabSeparated*`, and `Pretty*` [formats](../../../interfaces/formats.md), separate from the other rows. They are not output for other formats.
+
+In `JSON*` formats, the extreme values are output in a separate ‘extremes’ field. In `TabSeparated*` formats, the row comes after the main result, and after ‘totals’ if present. It is preceded by an empty row (after the other data). In `Pretty*` formats, the row is output as a separate table after the main result, and after `totals` if present.
+
+Extreme values are calculated for rows before `LIMIT`, but after `LIMIT BY`. However, when using `LIMIT offset, size`, the rows before `offset` are included in `extremes`. In stream requests, the result may also include a small number of rows that passed through `LIMIT`.
+
+### Notes {#notes}
+
+You can use synonyms (`AS` aliases) in any part of a query.
+
+The `GROUP BY` and `ORDER BY` clauses do not support positional arguments. This contradicts MySQL, but conforms to standard SQL. For example, `GROUP BY 1, 2` will be interpreted as grouping by constants (i.e. aggregation of all rows into one).
+
+
+## Implementation Details
+
+If the query omits the `DISTINCT`, `GROUP BY` and `ORDER BY` clauses and the `IN` and `JOIN` subqueries, the query will be completely stream processed, using O(1) amount of RAM. Otherwise, the query might consume a lot of RAM if the appropriate restrictions are not specified:
+
+-   `max_memory_usage`
+-   `max_rows_to_group_by`
+-   `max_rows_to_sort`
+-   `max_rows_in_distinct`
+-   `max_bytes_in_distinct`
+-   `max_rows_in_set`
+-   `max_bytes_in_set`
+-   `max_rows_in_join`
+-   `max_bytes_in_join`
+-   `max_bytes_before_external_sort`
+-   `max_bytes_before_external_group_by`
+
+For more information, see the section “Settings”. It is possible to use external sorting (saving temporary tables to a disk) and external aggregation.
+
+
+{## [Original article](https://clickhouse.tech/docs/en/sql-reference/statements/select/) ##}
