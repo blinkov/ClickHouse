@@ -1,5 +1,5 @@
 ---
-toc_folder_title: Log Family
-toc_priority: 29
+toc_folder_title: Integrations
+toc_priority: 30
 ---
 
