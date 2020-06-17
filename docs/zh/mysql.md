@@ -1,83 +1,45 @@
 ---
-toc_priority: 42
-toc_title: mysql
+toc_priority: 20
+toc_title: MySQL Interface
 ---
 
-# mysql {#mysql}
+# MySQL Interface {#mysql-interface}
 
-Allows `SELECT` queries to be performed on data that is stored on a remote MySQL server.
+ClickHouse supports MySQL wire protocol. It can be enabled by [mysql\_port](../operations/server-configuration-parameters/settings.md#server_configuration_parameters-mysql_port) setting in configuration file:
 
-``` sql
-mysql('host:port', 'database', 'table', 'user', 'password'[, replace_query, 'on_duplicate_clause']);
+``` xml
+<mysql_port>9004</mysql_port>
 ```
 
-**Parameters**
+Example of connecting using command-line tool `mysql`:
 
--   `host:port` — MySQL server address.
+``` bash
+$ mysql --protocol tcp -u default -P 9004
+```
 
--   `database` — Remote database name.
-
--   `table` — Remote table name.
-
--   `user` — MySQL user.
-
--   `password` — User password.
-
--   `replace_query` — Flag that converts `INSERT INTO` queries to `REPLACE INTO`. If `replace_query=1`, the query is replaced.
-
--   `on_duplicate_clause` — The `ON DUPLICATE KEY on_duplicate_clause` expression that is added to the `INSERT` query.
-  
-        Example: `INSERT INTO t (c1,c2) VALUES ('a', 2) ON DUPLICATE KEY UPDATE c2 = c2 + 1`, where `on_duplicate_clause` is `UPDATE c2 = c2 + 1`. See the MySQL documentation to find which `on_duplicate_clause` you can use with the `ON DUPLICATE KEY` clause.
-      
-        To specify `on_duplicate_clause` you need to pass `0` to the `replace_query` parameter. If you simultaneously pass `replace_query = 1` and `on_duplicate_clause`, ClickHouse generates an exception.
-
-Simple `WHERE` clauses such as `=, !=, >, >=, <, <=` are currently executed on the MySQL server.
-
-The rest of the conditions and the `LIMIT` sampling constraint are executed in ClickHouse only after the query to MySQL finishes.
-
-**Returned Value**
-
-A table object with the same columns as the original MySQL table.
-
-## Usage Example {#usage-example}
-
-Table in MySQL:
+Output if a connection succeeded:
 
 ``` text
-mysql> CREATE TABLE `test`.`test` (
-    ->   `int_id` INT NOT NULL AUTO_INCREMENT,
-    ->   `int_nullable` INT NULL DEFAULT NULL,
-    ->   `float` FLOAT NOT NULL,
-    ->   `float_nullable` FLOAT NULL DEFAULT NULL,
-    ->   PRIMARY KEY (`int_id`));
-Query OK, 0 rows affected (0,09 sec)
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 4
+Server version: 20.2.1.1-ClickHouse
 
-mysql> insert into test (`int_id`, `float`) VALUES (1,2);
-Query OK, 1 row affected (0,00 sec)
+Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
-mysql> select * from test;
-+------+----------+-----+----------+
-| int_id | int_nullable | float | float_nullable |
-+------+----------+-----+----------+
-|      1 |         NULL |     2 |           NULL |
-+------+----------+-----+----------+
-1 row in set (0,00 sec)
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql>
 ```
 
-Selecting data from ClickHouse:
+For compatibility with all MySQL clients, it is recommended to specify user password with [double SHA1](../operations/settings/settings-users.md#password_double_sha1_hex) in configuration file. If user password is specified using [SHA256](../operations/settings/settings-users.md#password_sha256_hex), some clients won’t be able to authenticate (mysqljs and old versions of command-line tool mysql).
 
-``` sql
-SELECT * FROM mysql('localhost:3306', 'test', 'test', 'bayonet', '123')
-```
+Restrictions:
 
-``` text
-┌─int_id─┬─int_nullable─┬─float─┬─float_nullable─┐
-│      1 │         ᴺᵁᴸᴸ │     2 │           ᴺᵁᴸᴸ │
-└────────┴──────────────┴───────┴────────────────┘
-```
+-   prepared queries are not supported
 
-## See Also {#see-also}
-
--   [The ‘MySQL’ table engine](../../engines/table-engines/integrations/mysql.md)
--   [Using MySQL as a source of external dictionary](../../sql-reference/dictionaries/external-dictionaries/external-dicts-dict-sources.md#dicts-external_dicts_dict_sources-mysql)
-[Original article](https://clickhouse.tech/docs/en/query_language/table_functions/mysql/) <!--hide-->
+-   some data types are sent as strings
+[Original article](https://clickhouse.tech/docs/en/interfaces/mysql/) <!--hide-->
