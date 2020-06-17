@@ -1,12 +1,16 @@
 ---
-toc_folder_title: Utilities
-toc_priority: 56
-toc_title: Overview
+toc_folder_title: Server Configuration Parameters
+toc_priority: 54
+toc_title: Introduction
 ---
 
-# ClickHouse Utility {#clickhouse-utility}
+# Server Configuration Parameters {#server-settings}
 
--   [clickhouse-local](clickhouse-local.md) — Allows running SQL queries on data without stopping the ClickHouse server, similar to how `awk` does this.
--   [clickhouse-copier](clickhouse-copier.md) — Copies (and reshards) data from one cluster to another cluster.
--   [clickhouse-benchmark](clickhouse-benchmark.md) — Loads server with the custom queries and settings.
-[Original article](https://clickhouse.tech/docs/en/operations/utils/) <!--hide-->
+This section contains descriptions of server settings that cannot be changed at the session or query level.
+
+These settings are stored in the `config.xml` file on the ClickHouse server.
+
+Other settings are described in the “[Settings](../settings/index.md#session-settings-intro)” section.
+
+Before studying the settings, read the [Configuration files](../configuration-files.md#configuration_files) section and note the use of substitutions (the `incl` and `optional` attributes).
+[Original article](https://clickhouse.tech/docs/en/operations/server_configuration_parameters/) <!--hide-->
