@@ -1,81 +1,117 @@
 ---
 toc_priority: 37
-toc_title: File
+toc_title: file
 ---
 
-# File Table Engine {#table_engines-file}
+# file {#file}
 
-The File table engine keeps the data in a file in one of the supported [file formats](../../../interfaces/formats.md#formats) (`TabSeparated`, `Native`, etc.).
-
-Usage scenarios:
-
--   Data export from ClickHouse to file.
--   Convert data from one format to another.
--   Updating data in ClickHouse via editing a file on a disk.
-
-## Usage in ClickHouse Server {#usage-in-clickhouse-server}
+Creates a table from a file. This table function is similar to [url](url.md) and [hdfs](hdfs.md) ones.
 
 ``` sql
-File(Format)
+file(path, format, structure)
 ```
 
-The `Format` parameter specifies one of the available file formats. To perform `SELECT` queries, the format must be supported for input, and to perform `INSERT` queries – for output. The available formats are listed in the [Formats](../../../interfaces/formats.md#formats) section.
+**Input parameters**
 
-ClickHouse does not allow to specify filesystem path for`File`. It will use folder defined by [path](../../../operations/server-configuration-parameters/settings.md) setting in server configuration.
+-   `path` — The relative path to the file from [user\_files\_path](../../operations/server-configuration-parameters/settings.md#server_configuration_parameters-user_files_path). Path to file support following globs in readonly mode: `*`, `?`, `{abc,def}` and `{N..M}` where `N`, `M` — numbers, \``'abc', 'def'` — strings.
+-   `format` — The [format](../../interfaces/formats.md#formats) of the file.
+-   `structure` — Structure of the table. Format `'column1_name column1_type, column2_name column2_type, ...'`.
 
-When creating table using `File(Format)` it creates empty subdirectory in that folder. When data is written to that table, it’s put into `data.Format` file in that subdirectory.
+**Returned value**
 
-You may manually create this subfolder and file in server filesystem and then [ATTACH](../../../sql-reference/statements/misc.md) it to table information with matching name, so you can query data from that file.
+A table with the specified structure for reading or writing data in the specified file.
 
-!!! warning "Warning" Be careful with this functionality, because ClickHouse does not keep track of external changes to such files. The result of simultaneous writes via ClickHouse and outside of ClickHouse is undefined.
+**Example**
 
-## Example
-
-**1.** Set up the `file_engine_table` table:
-
-``` sql
-CREATE TABLE file_engine_table (name String, value UInt32) ENGINE=File(TabSeparated)
-```
-
-By default ClickHouse will create folder `/var/lib/clickhouse/data/default/file_engine_table`.
-
-**2.** Manually create `/var/lib/clickhouse/data/default/file_engine_table/data.TabSeparated` containing:
+Setting `user_files_path` and the contents of the file `test.csv`:
 
 ``` bash
-$ cat data.TabSeparated
-one 1
-two 2
+$ grep user_files_path /etc/clickhouse-server/config.xml
+    <user_files_path>/var/lib/clickhouse/user_files/</user_files_path>
+
+$ cat /var/lib/clickhouse/user_files/test.csv
+    1,2,3
+    3,2,1
+    78,43,45
 ```
 
-**3.** Query the data:
+Table from`test.csv` and selection of the first two rows from it:
 
 ``` sql
-SELECT * FROM file_engine_table
+SELECT *
+FROM file('test.csv', 'CSV', 'column1 UInt32, column2 UInt32, column3 UInt32')
+LIMIT 2
 ```
 
 ``` text
-┌─name─┬─value─┐
-│ one  │     1 │
-│ two  │     2 │
-└──────┴───────┘
+┌─column1─┬─column2─┬─column3─┐
+│       1 │       2 │       3 │
+│       3 │       2 │       1 │
+└─────────┴─────────┴─────────┘
 ```
 
-## Usage in ClickHouse-local {#usage-in-clickhouse-local}
-
-In [clickhouse-local](../../../operations/utilities/clickhouse-local.md) File engine accepts file path in addition to `Format`. Default input/output streams can be specified using numeric or human-readable names like `0` or `stdin`, `1` or `stdout`. **Example:**
-
-``` bash
-$ echo -e "1,2\n3,4" | clickhouse-local -q "CREATE TABLE table (a Int64, b Int64) ENGINE = File(CSV, stdin); SELECT a, b FROM table; DROP TABLE table"
+``` sql
+-- getting the first 10 lines of a table that contains 3 columns of UInt32 type from a CSV file
+SELECT * FROM file('test.csv', 'CSV', 'column1 UInt32, column2 UInt32, column3 UInt32') LIMIT 10
 ```
 
-## Details of Implementation {#details-of-implementation}
+**Globs in path**
 
--   Multiple `SELECT` queries can be performed concurrently, but `INSERT` queries will wait each other.
--   Supported creating new file by `INSERT` query.
--   If file exists, `INSERT` would append new values in it.
--   Not supported:
-    -   `ALTER`
-    -   `SELECT ... SAMPLE`
-    -   Indices
-    -   Replication
-[Original article](https://clickhouse.tech/docs/en/operations/table_engines/file/) <!--hide-->
+Multiple path components can have globs. For being processed file should exists and matches to the whole path pattern (not only suffix or prefix).
+
+-   `*` — Substitutes any number of any characters except `/` including empty string.
+-   `?` — Substitutes any single character.
+-   `{some_string,another_string,yet_another_one}` — Substitutes any of strings `'some_string', 'another_string', 'yet_another_one'`.
+-   `{N..M}` — Substitutes any number in range from N to M including both borders.
+
+Constructions with `{}` are similar to the [remote table function](../../sql-reference/table-functions/remote.md)).
+
+**Example**
+
+1.  Suppose we have several files with the following relative paths:
+
+-   ‘some\_dir/some\_file\_1’
+-   ‘some\_dir/some\_file\_2’
+-   ‘some\_dir/some\_file\_3’
+-   ‘another\_dir/some\_file\_1’
+-   ‘another\_dir/some\_file\_2’
+-   ‘another\_dir/some\_file\_3’
+
+1.  Query the amount of rows in these files:
+
+<!-- -->
+
+``` sql
+SELECT count(*)
+FROM file('{some,another}_dir/some_file_{1..3}', 'TSV', 'name String, value UInt32')
+```
+
+1.  Query the amount of rows in all files of these two directories:
+
+<!-- -->
+
+``` sql
+SELECT count(*)
+FROM file('{some,another}_dir/*', 'TSV', 'name String, value UInt32')
+```
+
+!!! warning "Warning" If your listing of files contains number ranges with leading zeros, use the construction with braces for each digit separately or use `?`.
+
+**Example**
+
+Query the data from files named `file000`, `file001`, … , `file999`:
+
+``` sql
+SELECT count(*)
+FROM file('big_dir/file{0..9}{0..9}{0..9}', 'CSV', 'name String, value UInt32')
+```
+
+## Virtual Columns {#virtual-columns}
+
+-   `_path` — Path to the file.
+-   `_file` — Name of the file.
+
+**See Also**
+
+-   [Virtual columns](https://clickhouse.tech/docs/en/operations/table_engines/#table_engines-virtual_columns)
+[Original article](https://clickhouse.tech/docs/en/query_language/table_functions/file/) <!--hide-->
