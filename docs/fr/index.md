@@ -1,97 +1,64 @@
 ---
-machine_translated: true
-machine_translated_rev: 72537a2d527c63c07aa5d2361a8829f3895cf2bd
-toc_priority: 0
-toc_title: "Aper\xE7u"
+toc_folder_title: Functions
+toc_priority: 32
+toc_title: Introduction
 ---
 
-# Qu'Est-Ce Que ClickHouse? {#what-is-clickhouse}
+# Functions {#functions}
 
-ClickHouse est un système de gestion de base de données orienté colonne (SGBD) pour le traitement analytique en ligne des requêtes (OLAP).
+There are at least\* two types of functions - regular functions (they are just called “functions”) and aggregate functions. These are completely different concepts. Regular functions work as if they are applied to each row separately (for each row, the result of the function doesn’t depend on the other rows). Aggregate functions accumulate a set of values from various rows (i.e. they depend on the entire set of rows).
 
-Dans un “normal” SGBD orienté ligne, les données sont stockées dans cet ordre:
+In this section we discuss regular functions. For aggregate functions, see the section “Aggregate functions”.
 
-| Rangée | WatchID     | JavaEnable | Intitulé                         | GoodEvent | EventTime           |
-|--------|-------------|------------|----------------------------------|-----------|---------------------|
-| \#0    | 89354350662 | 1          | Relations Avec Les Investisseurs | 1         | 2016-05-18 05:19:20 |
-| \#1    | 90329509958 | 0          | Contacter                        | 1         | 2016-05-18 08:10:20 |
-| \#2    | 89953706054 | 1          | Mission                          | 1         | 2016-05-18 07:38:00 |
-| \#N    | …           | …          | …                                | …         | …                   |
+\* - There is a third type of function that the ‘arrayJoin’ function belongs to; table functions can also be mentioned separately.\*
 
-En d'autres termes, toutes les valeurs liées à une ligne sont physiquement stockées l'une à côté de l'autre.
+## Strong Typing {#strong-typing}
 
-Des exemples d'un SGBD orienté ligne sont MySQL, Postgres et MS SQL Server.
+In contrast to standard SQL, ClickHouse has strong typing. In other words, it doesn’t make implicit conversions between types. Each function works for a specific set of types. This means that sometimes you need to use type conversion functions.
 
-Dans un SGBD orienté colonne, les données sont stockées comme ceci:
+## Common Subexpression Elimination {#common-subexpression-elimination}
 
-| Rangée:     | \#0                              | \#1                 | \#2                 | \#N |
-|-------------|----------------------------------|---------------------|---------------------|-----|
-| WatchID:    | 89354350662                      | 90329509958         | 89953706054         | …   |
-| JavaEnable: | 1                                | 0                   | 1                   | …   |
-| Intitulé:   | Relations Avec Les Investisseurs | Contacter           | Mission             | …   |
-| GoodEvent:  | 1                                | 1                   | 1                   | …   |
-| EventTime:  | 2016-05-18 05:19:20              | 2016-05-18 08:10:20 | 2016-05-18 07:38:00 | …   |
+All expressions in a query that have the same AST (the same record or same result of syntactic parsing) are considered to have identical values. Such expressions are concatenated and executed once. Identical subqueries are also eliminated this way.
 
-Ces exemples montrent l'ordre que les données sont organisées en. Les valeurs de différentes colonnes sont stockés séparément, et les données de la même colonne sont stockées ensemble.
+## Types of Results {#types-of-results}
 
-Exemples D'un SGBD orienté colonne: Vertica, Paraccel (matrice Actian et Amazon Redshift), Sybase IQ, Exasol, Infobright, InfiniDB, MonetDB (VectorWise et Actian Vector), LucidDB, SAP HANA, Google Dremel, Google PowerDrill, Druid et kdb+.
+All functions return a single return as the result (not several values, and not zero values). The type of result is usually defined only by the types of arguments, not by the values. Exceptions are the tupleElement function (the a.N operator), and the toFixedString function.
 
-Different orders for storing data are better suited to different scenarios. The data access scenario refers to what queries are made, how often, and in what proportion; how much data is read for each type of query – rows, columns, and bytes; the relationship between reading and updating data; the working size of the data and how locally it is used; whether transactions are used, and how isolated they are; requirements for data replication and logical integrity; requirements for latency and throughput for each type of query, and so on.
+## Constants {#constants}
 
-Plus la charge sur le système est élevée, plus il est important de personnaliser le système configuré pour correspondre aux exigences du scénario d'utilisation, et plus cette personnalisation devient fine. Il n'y a pas de système qui soit aussi bien adapté à des scénarios significativement différents. Si un système est adaptable à un large ensemble de scénarios, sous une charge élevée, le système traitera tous les scénarios de manière également médiocre, ou fonctionnera bien pour un ou quelques-uns des scénarios possibles.
+For simplicity, certain functions can only work with constants for some arguments. For example, the right argument of the LIKE operator must be a constant. Almost all functions return a constant for constant arguments. The exception is functions that generate random numbers. The ‘now’ function returns different values for queries that were run at different times, but the result is considered a constant, since constancy is only important within a single query. A constant expression is also considered a constant (for example, the right half of the LIKE operator can be constructed from multiple constants).
 
-## Propriétés clés du scénario OLAP {#key-properties-of-olap-scenario}
+Functions can be implemented in different ways for constant and non-constant arguments (different code is executed). But the results for a constant and for a true column containing only the same value should match each other.
 
--   La grande majorité des demandes concernent l'accès en lecture.
--   Les données sont mises à jour en lots assez importants (\> 1000 lignes), pas par des lignes simples; ou elles ne sont pas mises à jour du tout.
--   Les données sont ajoutées à la base de données mais ne sont pas modifiées.
--   Pour les lectures, un assez grand nombre de lignes sont extraites de la base de données, mais seulement un petit sous-ensemble de colonnes.
--   Les Tables sont “wide,” ce qui signifie qu'ils contiennent un grand nombre de colonnes.
--   Les requêtes sont relativement rares (généralement des centaines de requêtes par serveur ou moins par seconde).
--   Pour les requêtes simples, les latences autour de 50 ms sont autorisées.
--   Les valeurs de colonne sont assez petites: nombres et chaînes courtes (par exemple, 60 octets par URL).
--   Nécessite un débit élevé lors du traitement d'une seule requête (jusqu'à des milliards de lignes par seconde par serveur).
--   Les Transactions ne sont pas nécessaires.
--   Faibles exigences en matière de cohérence des données.
--   Il y a une grande table par requête. Toutes les tables sont petites, sauf une.
--   Un résultat de requête est significativement plus petit que les données source. En d'autres termes, les données sont filtrées ou agrégées, de sorte que le résultat s'intègre dans la RAM d'un seul serveur.
+## NULL Processing {#null-processing}
 
-Il est facile de voir que le scénario OLAP est très différent des autres scénarios populaires (tels que OLTP ou key-Value access). Il n'est donc pas logique d'essayer D'utiliser OLTP ou une base de données clé-valeur pour traiter les requêtes analytiques si vous voulez obtenir des performances décentes. Par exemple, si vous essayez D'utiliser MongoDB ou Redis pour l'analyse, vous obtiendrez des performances très médiocres par rapport aux bases de données OLAP.
+Functions have the following behaviors:
 
-## Pourquoi les bases de données orientées colonne fonctionnent mieux dans le scénario OLAP {#why-column-oriented-databases-work-better-in-the-olap-scenario}
+-   If at least one of the arguments of the function is `NULL`, the function result is also `NULL`.
+-   Special behavior that is specified individually in the description of each function. In the ClickHouse source code, these functions have `UseDefaultImplementationForNulls=false`.
 
-Les bases de données orientées colonne sont mieux adaptées aux scénarios OLAP: elles sont au moins 100 fois plus rapides dans le traitement de la plupart des requêtes. Les raisons sont expliquées en détail ci-dessous, mais le fait est plus facile de démontrer visuellement:
+## Constancy {#constancy}
 
-**SGBD orienté ligne**
+Functions can’t change the values of their arguments – any changes are returned as the result. Thus, the result of calculating separate functions does not depend on the order in which the functions are written in the query.
 
-![Row-oriented](images/row-oriented.gif#)
+## Error Handling {#error-handling}
 
-**SGBD orienté colonne**
+Some functions might throw an exception if the data is invalid. In this case, the query is canceled and an error text is returned to the client. For distributed processing, when an exception occurs on one of the servers, the other servers also attempt to abort the query.
 
-![Column-oriented](images/column-oriented.gif#)
+## Evaluation of Argument Expressions {#evaluation-of-argument-expressions}
 
-Vous voyez la différence?
+In almost all programming languages, one of the arguments might not be evaluated for certain operators. This is usually the operators `&&`, `||`, and `?:`. But in ClickHouse, arguments of functions (operators) are always evaluated. This is because entire parts of columns are evaluated at once, instead of calculating each row separately.
 
-### D'entrée/sortie {#inputoutput}
+## Performing Functions for Distributed Query Processing {#performing-functions-for-distributed-query-processing}
 
-1.  Pour une requête analytique, seul un petit nombre de colonnes de table doit être lu. Dans une base de données orientée colonne, vous pouvez lire uniquement les données dont vous avez besoin. Par exemple, si vous avez besoin de 5 colonnes sur 100, Vous pouvez vous attendre à une réduction de 20 fois des e / s.
-2.  Puisque les données sont lues en paquets, il est plus facile de les compresser. Les données dans les colonnes sont également plus faciles à compresser. Cela réduit d'autant le volume d'e/S.
-3.  En raison de la réduction des E / S, Plus de données s'insèrent dans le cache du système.
+For distributed query processing, as many stages of query processing as possible are performed on remote servers, and the rest of the stages (merging intermediate results and everything after that) are performed on the requestor server.
 
-Par exemple, la requête “count the number of records for each advertising platform” nécessite la lecture d'un “advertising platform ID” colonne, qui prend 1 octet non compressé. Si la majeure partie du trafic ne provenait pas de plates-formes publicitaires, vous pouvez vous attendre à une compression d'au moins 10 fois de cette colonne. Lors de l'utilisation d'un algorithme de compression rapide, la décompression des données est possible à une vitesse d'au moins plusieurs gigaoctets de données non compressées par seconde. En d'autres termes, cette requête ne peut être traitée qu'à une vitesse d'environ plusieurs milliards de lignes par seconde sur un seul serveur. Cette vitesse est effectivement atteinte dans la pratique.
+This means that functions can be performed on different servers. For example, in the query `SELECT f(sum(g(x))) FROM distributed_table GROUP BY h(y),`
 
-### CPU {#cpu}
+-   if a `distributed_table` has at least two shards, the functions ‘g’ and ‘h’ are performed on remote servers, and the function ‘f’ is performed on the requestor server.
+-   if a `distributed_table` has only one shard, all the ‘f’, ‘g’, and ‘h’ functions are performed on this shard’s server.
 
-Étant donné que l'exécution d'une requête nécessite le traitement d'un grand nombre de lignes, il est utile de répartir toutes les opérations pour des vecteurs entiers au lieu de lignes séparées, ou d'implémenter le moteur de requête de sorte qu'il n'y ait presque aucun coût d'expédition. Si vous ne le faites pas, avec un sous-système de disque à moitié décent, l'interpréteur de requête bloque inévitablement le processeur. Il est logique de stocker des données dans des colonnes et de les traiter, si possible, par des colonnes.
+The result of a function usually doesn’t depend on which server it is performed on. However, sometimes this is important. For example, functions that work with dictionaries use the dictionary that exists on the server they are running on. Another example is the `hostName` function, which returns the name of the server it is running on in order to make `GROUP BY` by servers in a `SELECT` query.
 
-Il y a deux façons de le faire:
-
-1.  Un moteur vectoriel. Toutes les opérations sont écrites pour les vecteurs, au lieu de valeurs séparées. Cela signifie que vous n'avez pas besoin d'appeler les opérations très souvent, et les coûts d'expédition sont négligeables. Le code d'opération contient un cycle interne optimisé.
-
-2.  La génération de Code. Le code généré pour la requête contient tous les appels indirects.
-
-Ce n'est pas fait dans “normal” bases de données, car cela n'a pas de sens lors de l'exécution de requêtes simples. Cependant, il y a des exceptions. Par exemple, MemSQL utilise la génération de code pour réduire la latence lors du traitement des requêtes SQL. (À titre de comparaison, les SGBD analytiques nécessitent une optimisation du débit, et non une latence.)
-
-Notez que pour l'efficacité du processeur, le langage de requête doit être déclaratif (SQL ou MDX), ou au moins un vecteur (J, K). La requête ne doit contenir que des boucles implicites, permettant une optimisation.
-
-{## [Article Original](https://clickhouse.tech/docs/en/) ##}
+If a function in a query is performed on the requestor server, but you need to perform it on remote servers, you can wrap it in an ‘any’ aggregate function or add it to a key in `GROUP BY`.
+[Original article](https://clickhouse.tech/docs/en/query_language/functions/) <!--hide-->
