@@ -1,9 +1,5 @@
 ---
-toc_folder_title: F.A.Q.
-toc_priority: 76
-toc_title: hidden
-toc_hidden: true
+toc_folder_title: Special
+toc_priority: 31
 ---
 
-
-{## [Original article](https://clickhouse.tech/docs/en/faq) ##}
