@@ -1,9 +1,14 @@
 ---
-toc_folder_title: Nested Data Structures
-toc_hidden: true
-toc_priority: 54
-toc_title: hidden
+toc_folder_title: Data Types
+toc_priority: 37
+toc_title: Introduction
 ---
 
-# Nested Data Structures {#nested-data-structures}
-[Original article](https://clickhouse.tech/docs/en/data_types/nested_data_structures/) <!--hide-->
+# Data Types {#data_types}
+
+ClickHouse can store various kinds of data in table cells.
+
+This section describes the supported data types and special considerations for using and/or implementing them if any.
+
+You can check whether data type name is case-sensitive in the [system.data_type_families](../../operations/system-tables.md#system_tables-data_type_families) table.
+[Original article](https://clickhouse.tech/docs/en/data_types/) <!--hide-->
