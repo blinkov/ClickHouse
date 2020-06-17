@@ -1,100 +1,64 @@
 ---
-toc_priority: 0
-toc_title: "\u041E\u0431\u0437\u043E\u0440"
+toc_folder_title: Functions
+toc_priority: 32
+toc_title: Introduction
 ---
 
-# Что такое ClickHouse {#chto-takoe-clickhouse}
+# Functions {#functions}
 
-ClickHouse - столбцовая система управления базами данных (СУБД) для онлайн обработки аналитических запросов (OLAP).
+There are at least\* two types of functions - regular functions (they are just called “functions”) and aggregate functions. These are completely different concepts. Regular functions work as if they are applied to each row separately (for each row, the result of the function doesn’t depend on the other rows). Aggregate functions accumulate a set of values from various rows (i.e. they depend on the entire set of rows).
 
-В обычной, «строковой» СУБД, данные хранятся в таком порядке:
+In this section we discuss regular functions. For aggregate functions, see the section “Aggregate functions”.
 
-| Строка | WatchID     | JavaEnable | Title              | GoodEvent | EventTime           |
-|--------|-------------|------------|--------------------|-----------|---------------------|
-| \#0    | 89354350662 | 1          | Investor Relations | 1         | 2016-05-18 05:19:20 |
-| \#1    | 90329509958 | 0          | Contact us         | 1         | 2016-05-18 08:10:20 |
-| \#2    | 89953706054 | 1          | Mission            | 1         | 2016-05-18 07:38:00 |
-| \#N    | …           | …          | …                  | …         | …                   |
+\* - There is a third type of function that the ‘arrayJoin’ function belongs to; table functions can also be mentioned separately.\*
 
-То есть, значения, относящиеся к одной строке, физически хранятся рядом.
+## Strong Typing {#strong-typing}
 
-Примеры строковых СУБД: MySQL, Postgres, MS SQL Server.
-{: .grey }
+In contrast to standard SQL, ClickHouse has strong typing. In other words, it doesn’t make implicit conversions between types. Each function works for a specific set of types. This means that sometimes you need to use type conversion functions.
 
-В столбцовых СУБД, данные хранятся в таком порядке:
+## Common Subexpression Elimination {#common-subexpression-elimination}
 
-| Строка:     | \#0                 | \#1                 | \#2                 | \#N |
-|-------------|---------------------|---------------------|---------------------|-----|
-| WatchID:    | 89354350662         | 90329509958         | 89953706054         | …   |
-| JavaEnable: | 1                   | 0                   | 1                   | …   |
-| Title:      | Investor Relations  | Contact us          | Mission             | …   |
-| GoodEvent:  | 1                   | 1                   | 1                   | …   |
-| EventTime:  | 2016-05-18 05:19:20 | 2016-05-18 08:10:20 | 2016-05-18 07:38:00 | …   |
+All expressions in a query that have the same AST (the same record or same result of syntactic parsing) are considered to have identical values. Such expressions are concatenated and executed once. Identical subqueries are also eliminated this way.
 
-В примерах изображён только порядок расположения данных.
-То есть, значения из разных столбцов хранятся отдельно, а данные одного столбца - вместе.
+## Types of Results {#types-of-results}
 
-Примеры столбцовых СУБД: Vertica, Paraccel (Actian Matrix, Amazon Redshift), Sybase IQ, Exasol, Infobright, InfiniDB, MonetDB (VectorWise, Actian Vector), LucidDB, SAP HANA, Google Dremel, Google PowerDrill, Druid, kdb+.
-{: .grey }
+All functions return a single return as the result (not several values, and not zero values). The type of result is usually defined only by the types of arguments, not by the values. Exceptions are the tupleElement function (the a.N operator), and the toFixedString function.
 
-Разный порядок хранения данных лучше подходит для разных сценариев работы.
-Сценарий работы с данными - это то, какие производятся запросы, как часто и в каком соотношении; сколько читается данных на запросы каждого вида - строк, столбцов, байт; как соотносятся чтения и обновления данных; какой рабочий размер данных и насколько локально он используется; используются ли транзакции и с какой изолированностью; какие требования к дублированию данных и логической целостности; требования к задержкам на выполнение и пропускной способности запросов каждого вида и т. п.
+## Constants {#constants}
 
-Чем больше нагрузка на систему, тем более важной становится специализация под сценарий работы, и тем более конкретной становится эта специализация. Не существует системы, одинаково хорошо подходящей под существенно различные сценарии работы. Если система подходит под широкое множество сценариев работы, то при достаточно большой нагрузке, система будет справляться со всеми сценариями работы плохо, или справляться хорошо только с одним из сценариев работы.
+For simplicity, certain functions can only work with constants for some arguments. For example, the right argument of the LIKE operator must be a constant. Almost all functions return a constant for constant arguments. The exception is functions that generate random numbers. The ‘now’ function returns different values for queries that were run at different times, but the result is considered a constant, since constancy is only important within a single query. A constant expression is also considered a constant (for example, the right half of the LIKE operator can be constructed from multiple constants).
 
-## Ключевые особенности OLAP сценария работы {#kliuchevye-osobennosti-olap-stsenariia-raboty}
+Functions can be implemented in different ways for constant and non-constant arguments (different code is executed). But the results for a constant and for a true column containing only the same value should match each other.
 
--   подавляющее большинство запросов - на чтение;
--   данные обновляются достаточно большими пачками (\> 1000 строк), а не по одной строке, или не обновляются вообще;
--   данные добавляются в БД, но не изменяются;
--   при чтении, вынимается достаточно большое количество строк из БД, но только небольшое подмножество столбцов;
--   таблицы являются «широкими», то есть, содержат большое количество столбцов;
--   запросы идут сравнительно редко (обычно не более сотни в секунду на сервер);
--   при выполнении простых запросов, допустимы задержки в районе 50 мс;
--   значения в столбцах достаточно мелкие - числа и небольшие строки (пример - 60 байт на URL);
--   требуется высокая пропускная способность при обработке одного запроса (до миллиардов строк в секунду на один сервер);
--   транзакции отсутствуют;
--   низкие требования к консистентности данных;
--   в запросе одна большая таблица, все таблицы кроме одной маленькие;
--   результат выполнения запроса существенно меньше исходных данных - то есть, данные фильтруются или агрегируются; результат выполнения помещается в оперативку на одном сервере.
+## NULL Processing {#null-processing}
 
-Легко видеть, что OLAP сценарий работы существенно отличается от других распространённых сценариев работы (например, OLTP или Key-Value сценариев работы). Таким образом, не имеет никакого смысла пытаться использовать OLTP или Key-Value БД для обработки аналитических запросов, если вы хотите получить приличную производительность («выше плинтуса»). Например, если вы попытаетесь использовать для аналитики MongoDB или Redis - вы получите анекдотически низкую производительность по сравнению с OLAP-СУБД.
+Functions have the following behaviors:
 
-## Причины, по которым столбцовые СУБД лучше подходят для OLAP сценария {#prichiny-po-kotorym-stolbtsovye-subd-luchshe-podkhodiat-dlia-olap-stsenariia}
+-   If at least one of the arguments of the function is `NULL`, the function result is also `NULL`.
+-   Special behavior that is specified individually in the description of each function. In the ClickHouse source code, these functions have `UseDefaultImplementationForNulls=false`.
 
-Столбцовые СУБД лучше (от 100 раз по скорости обработки большинства запросов) подходят для OLAP сценария работы. Причины в деталях будут разъяснены ниже, а сам факт проще продемонстрировать визуально:
+## Constancy {#constancy}
 
-**Строковые СУБД**
+Functions can’t change the values of their arguments – any changes are returned as the result. Thus, the result of calculating separate functions does not depend on the order in which the functions are written in the query.
 
-![Строковые](images/row-oriented.gif#)
+## Error Handling {#error-handling}
 
-**Столбцовые СУБД**
+Some functions might throw an exception if the data is invalid. In this case, the query is canceled and an error text is returned to the client. For distributed processing, when an exception occurs on one of the servers, the other servers also attempt to abort the query.
 
-![Столбцовые](images/column-oriented.gif#)
+## Evaluation of Argument Expressions {#evaluation-of-argument-expressions}
 
-Видите разницу?
+In almost all programming languages, one of the arguments might not be evaluated for certain operators. This is usually the operators `&&`, `||`, and `?:`. But in ClickHouse, arguments of functions (operators) are always evaluated. This is because entire parts of columns are evaluated at once, instead of calculating each row separately.
 
-### По вводу-выводу {#po-vvodu-vyvodu}
+## Performing Functions for Distributed Query Processing {#performing-functions-for-distributed-query-processing}
 
-1.  Для выполнения аналитического запроса, требуется прочитать небольшое количество столбцов таблицы. В столбцовой БД для этого можно читать только нужные данные. Например, если вам требуется только 5 столбцов из 100, то следует рассчитывать на 20-кратное уменьшение ввода-вывода.
-2.  Так как данные читаются пачками, то их проще сжимать. Данные, лежащие по столбцам также лучше сжимаются. За счёт этого, дополнительно уменьшается объём ввода-вывода.
-3.  За счёт уменьшения ввода-вывода, больше данных влезает в системный кэш.
+For distributed query processing, as many stages of query processing as possible are performed on remote servers, and the rest of the stages (merging intermediate results and everything after that) are performed on the requestor server.
 
-Например, для запроса «посчитать количество записей для каждой рекламной системы», требуется прочитать один столбец «идентификатор рекламной системы», который занимает 1 байт в несжатом виде. Если большинство переходов было не с рекламных систем, то можно рассчитывать хотя бы на десятикратное сжатие этого столбца. При использовании быстрого алгоритма сжатия, возможно разжатие данных со скоростью более нескольких гигабайт несжатых данных в секунду. То есть, такой запрос может выполняться со скоростью около нескольких миллиардов строк в секунду на одном сервере. На практике, такая скорость действительно достигается.
+This means that functions can be performed on different servers. For example, in the query `SELECT f(sum(g(x))) FROM distributed_table GROUP BY h(y),`
 
-### По вычислениям {#po-vychisleniiam}
+-   if a `distributed_table` has at least two shards, the functions ‘g’ and ‘h’ are performed on remote servers, and the function ‘f’ is performed on the requestor server.
+-   if a `distributed_table` has only one shard, all the ‘f’, ‘g’, and ‘h’ functions are performed on this shard’s server.
 
-Так как для выполнения запроса надо обработать достаточно большое количество строк, становится актуальным диспетчеризовывать все операции не для отдельных строк, а для целых векторов, или реализовать движок выполнения запроса так, чтобы издержки на диспетчеризацию были примерно нулевыми. Если этого не делать, то при любой не слишком плохой дисковой подсистеме, интерпретатор запроса неизбежно упрётся в CPU.
-Имеет смысл не только хранить данные по столбцам, но и обрабатывать их, по возможности, тоже по столбцам.
+The result of a function usually doesn’t depend on which server it is performed on. However, sometimes this is important. For example, functions that work with dictionaries use the dictionary that exists on the server they are running on. Another example is the `hostName` function, which returns the name of the server it is running on in order to make `GROUP BY` by servers in a `SELECT` query.
 
-Есть два способа это сделать:
-
-1.  Векторный движок. Все операции пишутся не для отдельных значений, а для векторов. То есть, вызывать операции надо достаточно редко, и издержки на диспетчеризацию становятся пренебрежимо маленькими. Код операции содержит в себе хорошо оптимизированный внутренний цикл.
-
-2.  Кодогенерация. Для запроса генерируется код, в котором подставлены все косвенные вызовы.
-
-В «обычных» БД этого не делается, так как не имеет смысла при выполнении простых запросов. Хотя есть исключения. Например, в MemSQL кодогенерация используется для уменьшения latency при выполнении SQL запросов. Для сравнения, в аналитических СУБД требуется оптимизация throughput, а не latency.
-
-Стоит заметить, что для эффективности по CPU требуется, чтобы язык запросов был декларативным (SQL, MDX) или хотя бы векторным (J, K). То есть, чтобы запрос содержал циклы только в неявном виде, открывая возможности для оптимизации.
-
-[Оригинальная статья](https://clickhouse.tech/docs/ru/) <!--hide-->
+If a function in a query is performed on the requestor server, but you need to perform it on remote servers, you can wrap it in an ‘any’ aggregate function or add it to a key in `GROUP BY`.
+[Original article](https://clickhouse.tech/docs/en/query_language/functions/) <!--hide-->
