@@ -1,14 +1,19 @@
 ---
-toc_folder_title: Data Types
-toc_priority: 37
+toc_folder_title: Dictionaries
+toc_priority: 35
 toc_title: Introduction
 ---
 
-# Data Types {#data_types}
+# Dictionaries {#dictionaries}
 
-ClickHouse can store various kinds of data in table cells.
+A dictionary is a mapping (`key -> attributes`) that is convenient for various types of reference lists.
 
-This section describes the supported data types and special considerations for using and/or implementing them if any.
+ClickHouse supports special functions for working with dictionaries that can be used in queries. It is easier and more efficient to use dictionaries with functions than a `JOIN` with reference tables.
 
-You can check whether data type name is case-sensitive in the [system.data_type_families](../../operations/system-tables.md#system_tables-data_type_families) table.
-[Original article](https://clickhouse.tech/docs/en/data_types/) <!--hide-->
+[NULL](../../sql-reference/syntax.md#null-literal) values can’t be stored in a dictionary.
+
+ClickHouse supports:
+
+-   [Built-in dictionaries](internal-dicts.md#internal_dicts) with a specific [set of functions](../../sql-reference/functions/ym-dict-functions.md).
+-   [Plug-in (external) dictionaries](external-dictionaries/external-dicts.md#dicts-external-dicts) with a [set of functions](../../sql-reference/functions/ext-dict-functions.md).
+[Original article](https://clickhouse.tech/docs/en/query_language/dicts/) <!--hide-->
