@@ -1,12 +1,5 @@
 ---
-toc_folder_title: Utilities
-toc_priority: 56
-toc_title: Overview
+toc_folder_title: Special
+toc_priority: 31
 ---
 
-# ClickHouse Utility {#clickhouse-utility}
-
--   [clickhouse-local](clickhouse-local.md) — Allows running SQL queries on data without stopping the ClickHouse server, similar to how `awk` does this.
--   [clickhouse-copier](clickhouse-copier.md) — Copies (and reshards) data from one cluster to another cluster.
--   [clickhouse-benchmark](clickhouse-benchmark.md) — Loads server with the custom queries and settings.
-[Original article](https://clickhouse.tech/docs/en/operations/utils/) <!--hide-->
