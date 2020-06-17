@@ -1,5 +1,7 @@
 ---
-toc_folder_title: What's New
-toc_priority: 72
+toc_folder_title: Changelog
+toc_priority: 74
+toc_title: '2020'
 ---
 
+{% include "content/changelog.md" %}
