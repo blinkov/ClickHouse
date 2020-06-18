@@ -3,7 +3,7 @@ toc_priority: 3
 toc_title: Поддержка
 ---
 
-# ClickHouse Commercial Support Service Providers {#clickhouse-commercial-support-service-providers}
+# Поставщики коммерческих услуг ClickHouse {#clickhouse-commercial-support-service-providers}
 
 !!! info "Информация" Если вы запустили коммерческую службу поддержки ClickHouse, не стесняйтесь [открыть Pull Request](https://github.com/ClickHouse/ClickHouse/edit/master/docs/en/commercial/support.md) добавляя его в следующий список.
 
