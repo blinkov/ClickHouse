@@ -1,98 +1,164 @@
-<div markdown="1" markdown="1" markdown="1" dir="rtl">
+---
+toc_priority: 33
+toc_folder_title: SELECT
+toc_title: Overview
+title: SELECT Query
+---
 
-# ClickHouse چیست؟ {#clickhouse-chyst}
+# SELECT Query {#select-queries-syntax}
 
-ClickHouse یک مدیریت دیتابیس (DBMS) ستون گرا برای پردازش تحلیلی آنلاین (OLAP) می باشد.
+`SELECT` queries perform data retrieval. By default, the requested data is returned to the client, while in conjunction with [INSERT INTO](../../../sql-reference/statements/insert-into.md) it can be forwarded to a different table.
 
-در یک مدیریت دیتابیس ردیف گرا، داده ها به فرم زیر ذخیره سازی می شوند:
+## Syntax
 
-| Row | WatchID             | JavaEnable | Title              | GoodEvent | EventTime           |
-|-----|---------------------|------------|--------------------|-----------|---------------------|
-| \#0 | 5385521489354350662 | 1          | Investor Relations | 1         | 2016-05-18 05:19:20 |
-| \#1 | 5385521490329509958 | 0          | Contact us         | 1         | 2016-05-18 08:10:20 |
-| \#2 | 5385521489953706054 | 1          | Mission            | 1         | 2016-05-18 07:38:00 |
-| \#N | …                   | …          | …                  | …         | …                   |
+``` sql
+[WITH expr_list|(subquery)]
+SELECT [DISTINCT] expr_list
+[FROM [db.]table | (subquery) | table_function] [FINAL]
+[SAMPLE sample_coeff]
+[ARRAY JOIN ...]
+[GLOBAL] [ANY|ALL] [INNER|LEFT|RIGHT|FULL|CROSS] [OUTER] JOIN (subquery)|table USING columns_list
+[PREWHERE expr]
+[WHERE expr]
+[GROUP BY expr_list] [WITH TOTALS]
+[HAVING expr]
+[ORDER BY expr_list]
+[LIMIT [offset_value, ]n BY columns]
+[LIMIT [n, ]m]
+[UNION ALL ...]
+[INTO OUTFILE filename]
+[FORMAT format]
+```
 
-به این صورت، تمام مقادیر مربوط به یک سطر (رکورد) به صورت فیزیکی و در کنار یکدگیر ذخیره سازی می شوند.
+All clauses are optional, except for the required list of expressions immediately after `SELECT` which is covered in more detail [below](#select-clause).
 
-دیتابیس های MySQL, Postgres و MS SQL Server از انواع دیتابیس های ردیف گرا می باشند.
-{: .grey }
+Specifics of each optional clause are covered in separate sections, which are listed in the same order as they are executed:
 
-در یک دیتابیس ستون گرا، داده ها به شکل زیر ذخیره سازی می شوند:
+-   [WITH clause](with.md)
+-   [FROM clause](from.md)
+-   [SAMPLE clause](sample.md)
+-   [JOIN clause](join.md)
+-   [PREWHERE clause](prewhere.md)
+-   [WHERE clause](where.md)
+-   [GROUP BY clause](group-by.md)
+-   [LIMIT BY clause](limit-by.md)
+-   [HAVING clause](having.md)
+-   [SELECT clause](#select-clause)
+-   [DISTINCT clause](distinct.md)
+-   [LIMIT clause](limit.md)
+-   [UNION ALL clause](union-all.md)
+-   [INTO OUTFILE clause](into-outfile.md)
+-   [FORMAT clause](format.md)
 
-| Row:        | \#0                 | \#1                 | \#2                 | \#N |
-|-------------|---------------------|---------------------|---------------------|-----|
-| WatchID:    | 5385521489354350662 | 5385521490329509958 | 5385521489953706054 | …   |
-| JavaEnable: | 1                   | 0                   | 1                   | …   |
-| Title:      | Investor Relations  | Contact us          | Mission             | …   |
-| GoodEvent:  | 1                   | 1                   | 1                   | …   |
-| EventTime:  | 2016-05-18 05:19:20 | 2016-05-18 08:10:20 | 2016-05-18 07:38:00 | …   |
+## SELECT Clause {#select-clause}
 
-این مثال ها تنها نشان می دهند که داده ها منظم شده اند.
-مقادیر ستون های مختلف به صورت جدا، و داده های مربوط به یک ستون در کنار یکدیگر ذخیره می شوند.
+[Expressions](../../syntax.md#syntax-expressions) specified in the `SELECT` clause are calculated after all the operations in the clauses described above are finished. These expressions work as if they apply to separate rows in the result. If expressions in the `SELECT` clause contain aggregate functions, then ClickHouse processes aggregate functions and expressions used as their arguments during the [GROUP BY](group-by.md) aggregation.
 
-مثال های از دیتابیس های ستون گرا: Vertica, Paraccel (Actian Matrix, Amazon Redshift), Sybase IQ, Exasol, Infobright, InfiniDB, MonetDB (VectorWise, Actian Vector), LucidDB, SAP HANA, Google Dremel, Google PowerDrill, Druid, kdb+.
-{: .grey }
+If you want to include all columns in the result, use the asterisk (`*`) symbol. For example, `SELECT * FROM ...`.
 
-ترتیب های مختلف برای ذخیره سازی داده ها، مناسب سناریو های مختلف هستند. سناریو دسترسی به داده اشاره دارد به، چه query هایی ساخته شده اند، چند وقت به چند وقت، در چه مقداری، چقدر داده در هنگام اجرای هر query خوانده می شود، چند رکورد، چند ستون و چند بایت؛ رابطه ی بین خوانده و نوشتن داده؛ سایز دیتاسی فعال مورد استفاده و نحوه ی استفاده آن به صورت محلی؛ آیا از تراکنش استفاده می شود؛ چگونه داده ها جدا می شوند؛ نیازمندی ها برای replication داده ها و یکپارچگی منطقی داده ها؛ نیازمندی ها برای latency و throughput برای هر نوع از query، و…
+To match some columns in the result with a [re2](https://en.wikipedia.org/wiki/RE2_(software)) regular expression, you can use the `COLUMNS` expression.
 
-مهمتر از بالا بودن لود سیستم، سفارشی کردن سیستم مطابق با نیازمندی های سناریو می باشد، و این سفارشی سازی در ادامه دقیق تر می شود. هیج سیستمی وجود ندارد که مناسب انجام سناریو های متفاوت(بسیار متفاوت) باشد. اگر یک سیستم برای اجرای سناریو های مختلف آداپته شده باشد، در زمان بالا بودن لود، سیستم تمام سناریوها را به صورت ضعیف handle می کند.
+``` sql
+COLUMNS('regexp')
+```
 
-## ویژگی های کلیدی یک سناریو OLAP {#wyjgy-hy-khlydy-ykh-snryw-olap}
+For example, consider the table:
 
--   اکثریت درخواست های برای خواندن می باشد.
--   داده ها به صورت batch های بزرگ (\< 1000 رکورد) وارد می شوند، نه به صورت تکی؛ یا اینکه اصلا بروز نمی شوند.
--   داده ها به دیتابیس اضافه می شوند و تغییر پیدا نمی کنند.
--   برای خواندن، تعداد زیادی از رکورد ها از دیتابیس استخراج می شوند، اما فقط چند ستون از رکورد ها.
--   جداول «wide» هستند، به این معنی تعداد زیادی ستون دارند.
--   query ها نسبتا کم هستند (معمولا صدها query در ثانیه به ازای هر سرور یا کمتر)
--   برای query های ساده، زمان تاخیر 50 میلی ثانیه مجاز باشد.
--   مقادیر ستون ها کوچک باشد: اعداد و رشته های کوتاه (برای مثال 60 بایت به ازای هر url)
--   نیازمند throughput بالا در هنگام اجرای یک query (بالای یک میلیارد رکورد در هر ثانیه به ازای هر سرور)
--   تراکنش واجب نیست.
--   نیازمندی کم برای consistency بودن داده ها.
--   فقط یک جدول بزرگ به ازای هر query وجود دارد. تمام جداول کوچک هستند، به جز یکی.
--   نتیجه query به طول قابل توجهی کوچکتر از source داده ها می باشد. به عبارتی دیگر در یک query، داده ها فیلتر یا تجمیع می شوند، پس نتایج در RAM یک سرور فیت می شوند.
+``` sql
+CREATE TABLE default.col_names (aa Int8, ab Int8, bc Int8) ENGINE = TinyLog
+```
 
-خوب خیلی ساده می توان دید که سناریو های OLAP خیلی متفاوت تر از دیگر سناریو های محبوب هستند (مثل OLTP یا Key-Value). پس اگر میخواهید performance مناسب داشته باشید، استفاده از دیتابیس های OLTP یا Key-Value برای اجرای query های OLAP معنی ندارد. برای مثال، اگر شما از دیتابیس MongoDB یا Redis برای آنالیز استفاده کنید، قطعا performance بسیار ضعیف تری نسبت به دیتابیس های OLAP خواهید داشت.
+The following query selects data from all the columns containing the `a` symbol in their name.
 
-## دلایل برتری دیتابیس های ستون گرا برای سناریو های OLAP {#dlyl-brtry-dytbys-hy-stwn-gr-bry-snryw-hy-olap}
+``` sql
+SELECT COLUMNS('a') FROM col_names
+```
 
-دیتابیس های ستون گرا مناسب سناریو های OLAP هستند
-(حداقل 100 برابر در بیشتر query ها سرعت پردازش آنها بهتر است). دلایل این برتری در پایین شرح داده شده است، اما آسانترش این هست که به صورت visually این تفاوت را ببینیم:
+``` text
+┌─aa─┬─ab─┐
+│  1 │  1 │
+└────┴────┘
+```
 
-**ردیف گرا**
+The selected columns are returned not in the alphabetical order.
 
-![Row oriented](images/row-oriented.gif#)
+You can use multiple `COLUMNS` expressions in a query and apply functions to them.
 
-**ستون گرا**
+For example:
 
-![Column oriented](images/column-oriented.gif#)
+``` sql
+SELECT COLUMNS('a'), COLUMNS('c'), toTypeName(COLUMNS('c')) FROM col_names
+```
 
-تفاوت را دیدید؟ بیشتر بخوانید تا یاد بگیرید چرا این اتفاق رخ میدهد.
+``` text
+┌─aa─┬─ab─┬─bc─┬─toTypeName(bc)─┐
+│  1 │  1 │  1 │ Int8           │
+└────┴────┴────┴────────────────┘
+```
 
-### Input/output {#inputoutput}
+Each column returned by the `COLUMNS` expression is passed to the function as a separate argument. Also you can pass other arguments to the function if it supports them. Be careful when using functions. If a function doesn’t support the number of arguments you have passed to it, ClickHouse throws an exception.
 
-1.  برای query های تحلیلی، تنها چند ستون از تمام ستون های جدول نیاز به خواندن دارد. در یک دیتابیس ستون گرا، شما فقط داده ی مورد نیاز را می خوانید. برای مثال، اگر شما نیاز به 5 ستون از 100 ستون را دارید، شما می توانید انتظار 20 برابر کاهش I/O را داشته باشید.
-2.  از آنجایی که داده در بسته ها خوانده می شوند، فشرده سازی ساده می باشد. همچنین داده های ستون ها برای فشرده سازی ساده می باشند. این باعث کاهش نرخ I/O در ادامه می شود.
-3.  با توجه به کاهش I/O، داده های بیشتری در system cache قرار می گیرند.
+For example:
 
-برای مثال، query «تعداد رکوردها به ازای هر بستر نیازمندی» نیازمند خواندن ستون «آیدی بستر آگهی»، که 1 بایت بدون فشرده طول می کشد، خواهد بود. اگر بیشتر ترافیک مربوط به بستر های نیازمندی نبود، شما می توانید انتظار حداقل 10 برابر فشرده سازی این ستون را داشته باشید. زمانی که از الگوریتم فشرده سازی quick استفاده می کنید، عملیات decompression داده ها با سرعت حداقل چندین گیگابایت در ثانیه انجام می شود. به عبارت دیگر، این query توانایی پردازش تقریبا چندین میلیارد رکورد در ثانیه به ازای یک سرور را دارد. این سرعت در عمل واقعی و دست یافتنی است.
+``` sql
+SELECT COLUMNS('a') + COLUMNS('c') FROM col_names
+```
 
-### CPU {#cpu}
+``` text
+Received exception from server (version 19.14.1):
+Code: 42. DB::Exception: Received from localhost:9000. DB::Exception: Number of arguments for function plus doesn't match: passed 3, should be 2.
+```
 
-از آنجایی که اجرای یک query نیازمند پردازش تعداد زیادی سطر می باشد، این کمک می کند تا تمام عملیات ها به جای ارسال به سطرهای جداگانه، برای کل بردار ارسال شود، یا برای ترکیب query engine به طوری که هیچ هزینه ی ارسالی وجود ندارد. اگر این کار رو نکنید، با هر half-decent disk subsystem، تفسیرگر query ناگزیر است که CPU را متوقف کند. این منطقی است که که در صورت امکان هر دو کار ذخیره سازی داده در ستون ها و پردازش ستون ها با هم انجام شود.
+In this example, `COLUMNS('a')` returns two columns: `aa` and `ab`. `COLUMNS('c')` returns the `bc` column. The `+` operator can’t apply to 3 arguments, so ClickHouse throws an exception with the relevant message.
 
-دو راه برای انجام این کار وجود دارد:
+Columns that matched the `COLUMNS` expression can have different data types. If `COLUMNS` doesn’t match any columns and is the only expression in `SELECT`, ClickHouse throws an exception.
 
-1.  یک موتور بردار. تمام عملیات ها به جای مقادیر جداگانه، برای بردارها نوشته شوند. این به این معنیست که شما خیلی از مواقع نیازی به صدا کردن عملیات ها ندارید، و هزینه انتقال ناچیز است. کد عملیاتی شامل یک چرخه داخلی بهینه شده است.
+### Asterisk
 
-2.  Code generation. کد تولید شده برای query دارای تمام تماس های غیرمستقیم در آن است.
+You can put an asterisk in any part of a query instead of an expression. When the query is analyzed, the asterisk is expanded to a list of all table columns (excluding the `MATERIALIZED` and `ALIAS` columns). There are only a few cases when using an asterisk is justified:
 
-این در یک دیتابیس نرمال انجام نمی شود، چرا که برای اجرای query های ساده این کارها منطقی نیست. هرچند، استثناهاتی هم وجود دارد. برای مثال، MemSQL از code generation برای کاهش latency در هنگام پردازش query های SQL استفاده می کند. (برای مقایسه، مدیریت دیتابیس های آنالیزی نیازمند بهینه سازی توان عملیاتی (throughput) هستند نه latency.)
+-   When creating a table dump.
+-   For tables containing just a few columns, such as system tables.
+-   For getting information about what columns are in a table. In this case, set `LIMIT 1`. But it is better to use the `DESC TABLE` query.
+-   When there is strong filtration on a small number of columns using `PREWHERE`.
+-   In subqueries (since columns that aren’t needed for the external query are excluded from subqueries).
 
-توجه کنید که برای کارایی CPU، query language باید SQL یا MDX باشد، یا حداقل یک بردارد (J, K) باشد. query برای بهینه سازی باید فقط دارای حلقه های implicit باشد.
+In all other cases, we don’t recommend using the asterisk, since it only gives you the drawbacks of a columnar DBMS instead of the advantages. In other words using the asterisk is not recommended.
 
-</div>
+### Extreme Values {#extreme-values}
 
-[مقاله اصلی](https://clickhouse.tech/docs/fa/) <!--hide-->
+In addition to results, you can also get minimum and maximum values for the results columns. To do this, set the **extremes** setting to 1. Minimums and maximums are calculated for numeric types, dates, and dates with times. For other columns, the default values are output.
+
+An extra two rows are calculated – the minimums and maximums, respectively. These extra two rows are output in `JSON*`, `TabSeparated*`, and `Pretty*` [formats](../../../interfaces/formats.md), separate from the other rows. They are not output for other formats.
+
+In `JSON*` formats, the extreme values are output in a separate ‘extremes’ field. In `TabSeparated*` formats, the row comes after the main result, and after ‘totals’ if present. It is preceded by an empty row (after the other data). In `Pretty*` formats, the row is output as a separate table after the main result, and after `totals` if present.
+
+Extreme values are calculated for rows before `LIMIT`, but after `LIMIT BY`. However, when using `LIMIT offset, size`, the rows before `offset` are included in `extremes`. In stream requests, the result may also include a small number of rows that passed through `LIMIT`.
+
+### Notes {#notes}
+
+You can use synonyms (`AS` aliases) in any part of a query.
+
+The `GROUP BY` and `ORDER BY` clauses do not support positional arguments. This contradicts MySQL, but conforms to standard SQL. For example, `GROUP BY 1, 2` will be interpreted as grouping by constants (i.e. aggregation of all rows into one).
+
+
+## Implementation Details
+
+If the query omits the `DISTINCT`, `GROUP BY` and `ORDER BY` clauses and the `IN` and `JOIN` subqueries, the query will be completely stream processed, using O(1) amount of RAM. Otherwise, the query might consume a lot of RAM if the appropriate restrictions are not specified:
+
+-   `max_memory_usage`
+-   `max_rows_to_group_by`
+-   `max_rows_to_sort`
+-   `max_rows_in_distinct`
+-   `max_bytes_in_distinct`
+-   `max_rows_in_set`
+-   `max_bytes_in_set`
+-   `max_rows_in_join`
+-   `max_bytes_in_join`
+-   `max_bytes_before_external_sort`
+-   `max_bytes_before_external_group_by`
+
+For more information, see the section “Settings”. It is possible to use external sorting (saving temporary tables to a disk) and external aggregation.
+
+
+{## [Original article](https://clickhouse.tech/docs/en/sql-reference/statements/select/) ##}

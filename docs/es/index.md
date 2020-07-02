@@ -1,97 +1,64 @@
 ---
-machine_translated: true
-machine_translated_rev: 72537a2d527c63c07aa5d2361a8829f3895cf2bd
-toc_priority: 0
-toc_title: "Descripci\xF3n"
+toc_folder_title: Functions
+toc_priority: 32
+toc_title: Introduction
 ---
 
-# ¿Qué es ClickHouse? {#what-is-clickhouse}
+# Functions {#functions}
 
-ClickHouse es un sistema de gestión de bases de datos orientado a columnas (DBMS) para el procesamiento analítico en línea de consultas (OLAP).
+There are at least\* two types of functions - regular functions (they are just called “functions”) and aggregate functions. These are completely different concepts. Regular functions work as if they are applied to each row separately (for each row, the result of the function doesn’t depend on the other rows). Aggregate functions accumulate a set of values from various rows (i.e. they depend on the entire set of rows).
 
-En un “normal” DBMS orientado a filas, los datos se almacenan en este orden:
+In this section we discuss regular functions. For aggregate functions, see the section “Aggregate functions”.
 
-| Fila | Argumento   | JavaEnable | Titular                   | GoodEvent | EventTime           |
-|------|-------------|------------|---------------------------|-----------|---------------------|
-| \#0  | 89354350662 | 1          | Relaciones con inversores | 1         | 2016-05-18 05:19:20 |
-| \#1  | 90329509958 | 0          | Contáctenos               | 1         | 2016-05-18 08:10:20 |
-| \#2  | 89953706054 | 1          | Mision                    | 1         | 2016-05-18 07:38:00 |
-| \#N  | …           | …          | …                         | …         | …                   |
+\* - There is a third type of function that the ‘arrayJoin’ function belongs to; table functions can also be mentioned separately.\*
 
-En otras palabras, todos los valores relacionados con una fila se almacenan físicamente uno junto al otro.
+## Strong Typing {#strong-typing}
 
-Ejemplos de un DBMS orientado a filas son MySQL, Postgres y MS SQL Server.
+In contrast to standard SQL, ClickHouse has strong typing. In other words, it doesn’t make implicit conversions between types. Each function works for a specific set of types. This means that sometimes you need to use type conversion functions.
 
-En un DBMS orientado a columnas, los datos se almacenan así:
+## Common Subexpression Elimination {#common-subexpression-elimination}
 
-| Fila:       | \#0                       | \#1                 | \#2                 | \#N |
-|-------------|---------------------------|---------------------|---------------------|-----|
-| Argumento:  | 89354350662               | 90329509958         | 89953706054         | …   |
-| JavaEnable: | 1                         | 0                   | 1                   | …   |
-| Titular:    | Relaciones con inversores | Contáctenos         | Mision              | …   |
-| GoodEvent:  | 1                         | 1                   | 1                   | …   |
-| EventTime:  | 2016-05-18 05:19:20       | 2016-05-18 08:10:20 | 2016-05-18 07:38:00 | …   |
+All expressions in a query that have the same AST (the same record or same result of syntactic parsing) are considered to have identical values. Such expressions are concatenated and executed once. Identical subqueries are also eliminated this way.
 
-Estos ejemplos solo muestran el orden en el que se organizan los datos. Los valores de diferentes columnas se almacenan por separado y los datos de la misma columna se almacenan juntos.
+## Types of Results {#types-of-results}
 
-Ejemplos de un DBMS orientado a columnas: Vertica, Paraccel (Actian Matrix y Amazon Redshift), Sybase IQ, Exasol, Infobright, InfiniDB, MonetDB (VectorWise y Actian Vector), LucidDB, SAP HANA, Google Dremel, Google PowerDrill, Druid y kdb+.
+All functions return a single return as the result (not several values, and not zero values). The type of result is usually defined only by the types of arguments, not by the values. Exceptions are the tupleElement function (the a.N operator), and the toFixedString function.
 
-Different orders for storing data are better suited to different scenarios. The data access scenario refers to what queries are made, how often, and in what proportion; how much data is read for each type of query – rows, columns, and bytes; the relationship between reading and updating data; the working size of the data and how locally it is used; whether transactions are used, and how isolated they are; requirements for data replication and logical integrity; requirements for latency and throughput for each type of query, and so on.
+## Constants {#constants}
 
-Cuanto mayor sea la carga en el sistema, más importante es personalizar el sistema configurado para que coincida con los requisitos del escenario de uso, y más fino será esta personalización. No existe un sistema que sea igualmente adecuado para escenarios significativamente diferentes. Si un sistema es adaptable a un amplio conjunto de escenarios, bajo una carga alta, el sistema manejará todos los escenarios igualmente mal, o funcionará bien para solo uno o algunos de los escenarios posibles.
+For simplicity, certain functions can only work with constants for some arguments. For example, the right argument of the LIKE operator must be a constant. Almost all functions return a constant for constant arguments. The exception is functions that generate random numbers. The ‘now’ function returns different values for queries that were run at different times, but the result is considered a constant, since constancy is only important within a single query. A constant expression is also considered a constant (for example, the right half of the LIKE operator can be constructed from multiple constants).
 
-## Propiedades clave del escenario OLAP {#key-properties-of-olap-scenario}
+Functions can be implemented in different ways for constant and non-constant arguments (different code is executed). But the results for a constant and for a true column containing only the same value should match each other.
 
--   La gran mayoría de las solicitudes son para acceso de lectura.
--   Los datos se actualizan en lotes bastante grandes (\> 1000 filas), no por filas individuales; o no se actualiza en absoluto.
--   Los datos se agregan a la base de datos pero no se modifican.
--   Para las lecturas, se extrae un número bastante grande de filas de la base de datos, pero solo un pequeño subconjunto de columnas.
--   Las tablas son “wide,” lo que significa que contienen un gran número de columnas.
--   Las consultas son relativamente raras (generalmente cientos de consultas por servidor o menos por segundo).
--   Para consultas simples, se permiten latencias de alrededor de 50 ms.
--   Los valores de columna son bastante pequeños: números y cadenas cortas (por ejemplo, 60 bytes por URL).
--   Requiere un alto rendimiento al procesar una sola consulta (hasta miles de millones de filas por segundo por servidor).
--   Las transacciones no son necesarias.
--   Bajos requisitos para la coherencia de los datos.
--   Hay una tabla grande por consulta. Todas las mesas son pequeñas, excepto una.
--   Un resultado de consulta es significativamente menor que los datos de origen. En otras palabras, los datos se filtran o se agregan, por lo que el resultado se ajusta a la RAM de un solo servidor.
+## NULL Processing {#null-processing}
 
-Es fácil ver que el escenario OLAP es muy diferente de otros escenarios populares (como el acceso OLTP o Key-Value). Por lo tanto, no tiene sentido intentar usar OLTP o una base de datos de valor clave para procesar consultas analíticas si desea obtener un rendimiento decente. Por ejemplo, si intenta usar MongoDB o Redis para análisis, obtendrá un rendimiento muy bajo en comparación con las bases de datos OLAP.
+Functions have the following behaviors:
 
-## Por qué las bases de datos orientadas a columnas funcionan mejor en el escenario OLAP {#why-column-oriented-databases-work-better-in-the-olap-scenario}
+-   If at least one of the arguments of the function is `NULL`, the function result is also `NULL`.
+-   Special behavior that is specified individually in the description of each function. In the ClickHouse source code, these functions have `UseDefaultImplementationForNulls=false`.
 
-Las bases de datos orientadas a columnas son más adecuadas para los escenarios OLAP: son al menos 100 veces más rápidas en el procesamiento de la mayoría de las consultas. Las razones se explican en detalle a continuación, pero el hecho es más fácil de demostrar visualmente:
+## Constancy {#constancy}
 
-**DBMS orientado a filas**
+Functions can’t change the values of their arguments – any changes are returned as the result. Thus, the result of calculating separate functions does not depend on the order in which the functions are written in the query.
 
-![Row-oriented](images/row-oriented.gif#)
+## Error Handling {#error-handling}
 
-**DBMS orientado a columnas**
+Some functions might throw an exception if the data is invalid. In this case, the query is canceled and an error text is returned to the client. For distributed processing, when an exception occurs on one of the servers, the other servers also attempt to abort the query.
 
-![Column-oriented](images/column-oriented.gif#)
+## Evaluation of Argument Expressions {#evaluation-of-argument-expressions}
 
-Ver la diferencia?
+In almost all programming languages, one of the arguments might not be evaluated for certain operators. This is usually the operators `&&`, `||`, and `?:`. But in ClickHouse, arguments of functions (operators) are always evaluated. This is because entire parts of columns are evaluated at once, instead of calculating each row separately.
 
-### Entrada/salida {#inputoutput}
+## Performing Functions for Distributed Query Processing {#performing-functions-for-distributed-query-processing}
 
-1.  Para una consulta analítica, solo es necesario leer un pequeño número de columnas de tabla. En una base de datos orientada a columnas, puede leer solo los datos que necesita. Por ejemplo, si necesita 5 columnas de 100, puede esperar una reducción de 20 veces en E/S.
-2.  Dado que los datos se leen en paquetes, es más fácil de comprimir. Los datos en columnas también son más fáciles de comprimir. Esto reduce aún más el volumen de E/S.
-3.  Debido a la reducción de E / S, más datos se ajustan a la memoria caché del sistema.
+For distributed query processing, as many stages of query processing as possible are performed on remote servers, and the rest of the stages (merging intermediate results and everything after that) are performed on the requestor server.
 
-Por ejemplo, la consulta “count the number of records for each advertising platform” requiere leer uno “advertising platform ID” columna, que ocupa 1 byte sin comprimir. Si la mayor parte del tráfico no proviene de plataformas publicitarias, puede esperar al menos una compresión de 10 veces de esta columna. Cuando se utiliza un algoritmo de compresión rápida, la descompresión de datos es posible a una velocidad de al menos varios gigabytes de datos sin comprimir por segundo. En otras palabras, esta consulta se puede procesar a una velocidad de aproximadamente varios miles de millones de filas por segundo en un único servidor. Esta velocidad se logra realmente en la práctica.
+This means that functions can be performed on different servers. For example, in the query `SELECT f(sum(g(x))) FROM distributed_table GROUP BY h(y),`
 
-### CPU {#cpu}
+-   if a `distributed_table` has at least two shards, the functions ‘g’ and ‘h’ are performed on remote servers, and the function ‘f’ is performed on the requestor server.
+-   if a `distributed_table` has only one shard, all the ‘f’, ‘g’, and ‘h’ functions are performed on this shard’s server.
 
-Dado que la ejecución de una consulta requiere procesar un gran número de filas, ayuda enviar todas las operaciones para vectores completos en lugar de para filas separadas, o implementar el motor de consultas para que casi no haya costo de envío. Si no hace esto, con cualquier subsistema de disco medio decente, el intérprete de consultas inevitablemente detiene la CPU. Tiene sentido almacenar datos en columnas y procesarlos, cuando sea posible, por columnas.
+The result of a function usually doesn’t depend on which server it is performed on. However, sometimes this is important. For example, functions that work with dictionaries use the dictionary that exists on the server they are running on. Another example is the `hostName` function, which returns the name of the server it is running on in order to make `GROUP BY` by servers in a `SELECT` query.
 
-Hay dos formas de hacer esto:
-
-1.  Un vector motor. Todas las operaciones se escriben para vectores, en lugar de para valores separados. Esto significa que no necesita llamar a las operaciones con mucha frecuencia, y los costos de envío son insignificantes. El código de operación contiene un ciclo interno optimizado.
-
-2.  Generación de código. El código generado para la consulta tiene todas las llamadas indirectas.
-
-Esto no se hace en “normal” bases de datos, porque no tiene sentido cuando se ejecutan consultas simples. Sin embargo, hay excepciones. Por ejemplo, MemSQL utiliza la generación de código para reducir la latencia al procesar consultas SQL. (A modo de comparación, los DBMS analíticos requieren la optimización del rendimiento, no la latencia.)
-
-Tenga en cuenta que para la eficiencia de la CPU, el lenguaje de consulta debe ser declarativo (SQL o MDX), o al menos un vector (J, K). La consulta solo debe contener bucles implícitos, lo que permite la optimización.
-
-{## [Artículo Original](https://clickhouse.tech/docs/en/) ##}
+If a function in a query is performed on the requestor server, but you need to perform it on remote servers, you can wrap it in an ‘any’ aggregate function or add it to a key in `GROUP BY`.
+[Original article](https://clickhouse.tech/docs/en/query_language/functions/) <!--hide-->
