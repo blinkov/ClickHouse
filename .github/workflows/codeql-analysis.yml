@@ -5,11 +5,10 @@ on:
   pull_request:
   schedule:
     - cron: '0 21 * * 3'
-runs-on: self-hosted
 jobs:
   CodeQL-Build:
 
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
     - name: Checkout repository
