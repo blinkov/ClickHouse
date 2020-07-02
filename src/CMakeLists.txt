@@ -6,6 +6,7 @@ if (USE_CLANG_TIDY)
     set (CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_PATH}")
 endif ()
 
+
 if(COMPILER_PIPE)
     set(MAX_COMPILER_MEMORY 2500)
 else()
