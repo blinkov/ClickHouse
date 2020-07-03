@@ -6,6 +6,7 @@ end_of_line = lf
 insert_final_newline = true
 
 
+
 # Matches multiple files with brace expansion notation
 # Set default charset
 [*.{c,cpp,cxx,h,hpp,hxx,py,cmake}]
